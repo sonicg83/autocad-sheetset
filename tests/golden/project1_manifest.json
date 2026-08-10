@@ -1,0 +1,11 @@
+{
+  "algorithm": "对按文件名排序的DST/DWG列表生成{name,size,sha256}，使用UTF-8、sort_keys和紧凑JSON后计算SHA-256",
+  "file_count": 54,
+  "total_size": 436731825,
+  "files_digest": "b464ae0034baebcea93431e816246bbd8adec0af94bd5da8d0cbd02106249bba",
+  "dst_sha256": "ee35fcc37a96ffa68fa843e62b5e182e2696393a236e61a0db21467f29d76a58",
+  "sheet_count": 298,
+  "subset_count": 45,
+  "referenced_dwg_count": 45,
+  "unreferenced_dwg_count": 8
+}
