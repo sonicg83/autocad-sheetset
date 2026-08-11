@@ -4,13 +4,23 @@
 
 新实现位于 `src/dst_manager`，提供 DST/XML 编解码、AcSm DOM 投影与校验、路径重定位、SQLite 任务/修订索引、可恢复发布、Core Console 边界、FastAPI、CLI 和 Vue 3 操作界面。
 
+### 环境变量与启动
+
+运行 `scripts/setup-env.ps1` 自动设置环境（需在项目根目录点源，使变量保留在当前会话）：
+
 ```powershell
-$env:UV_LINK_MODE = "copy" # OneDrive目录建议启用
+. .\scripts\setup-env.ps1   # 生成 .env、注入 UV_LINK_MODE/UV_CACHE_DIR、探测本机 AutoCAD
 uv sync
 uv run dst-manager doctor
 uv run dst-manager open "C:\项目目录\图纸集数据文件.dst"
 uv run dst-manager serve
 ```
+
+脚本会：从 `.env.example` 生成 `.env`（若不存在）、探测本机 AutoCAD 2016/2020 的 `accoreconsole.exe` 写回 `.env`、设置 `UV_LINK_MODE=copy`（OneDrive 建议）与项目独立 `UV_CACHE_DIR`。脚本幂等，只补缺失项，不覆盖已有 `.env` 内容；用 `-Force` 可重建 `.env`。
+
+如需每次打开终端自动生效，可在 PowerShell `$PROFILE` 中加入 `. "C:\Users\sonic\OneDrive\codework\autocad-sheetset\scripts\setup-env.ps1"`（脚本仅在项目根目录生效，不会污染其他项目）。
+
+`.env` 与 `DST_MANAGER_*` 变量说明见根目录 `.env.example`；CAD 控制台/插件路径也可手动在 `.env` 中配置。
 
 Web 开发界面在 `web/`。执行 `npm install`、`npm run build` 后，`dst-manager serve` 会同时提供构建后的页面；开发时可使用 `npm run dev`。服务只允许绑定 `127.0.0.1`；结构性图纸操作需要显式配置匹配版本的 Core Console 和插件。
 
