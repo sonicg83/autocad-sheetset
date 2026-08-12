@@ -23,6 +23,7 @@ class JobStatus(StrEnum):
     BLOCKED_FILE_LOCK = "BLOCKED_FILE_LOCK"
     ROLLING_BACK = "ROLLING_BACK"
     ROLLED_BACK = "ROLLED_BACK"
+    NEEDS_REVIEW = "NEEDS_REVIEW"
 
 
 @dataclass(slots=True)

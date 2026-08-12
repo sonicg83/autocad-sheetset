@@ -1,5 +1,6 @@
 import re
 import subprocess
+import time
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -58,12 +59,31 @@ class CadCapability:
         return bool(self.console and self.console.is_file() and self.plugin and self.plugin.is_file())
 
 
+@dataclass(slots=True)
+class CoreConsoleResult:
+    args: list[str]
+    returncode: int
+    stdout: str
+    stderr: str
+    duration_ms: int
+    peak_memory_bytes: int | None
+
+
 class CoreConsoleExecutor:
-    def run(self, capability: CadCapability, drawing: Path, script: Path, timeout: int) -> subprocess.CompletedProcess[str]:
+    def run(self, capability: CadCapability, drawing: Path, script: Path, timeout: int) -> CoreConsoleResult:
         if not capability.available:
             raise RuntimeError(f"CAD_CAPABILITY_UNAVAILABLE: {capability.version}")
         args = [str(capability.console), "/i", str(drawing), "/s", str(script), "/l", "zh-CN"]
-        raw = subprocess.run(args, check=False, capture_output=True, timeout=timeout, shell=False)
+        started = time.perf_counter()
+        process = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=False)
+        try:
+            stdout, stderr = process.communicate(timeout=timeout)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            stdout, stderr = process.communicate()
+            raise subprocess.TimeoutExpired(args, timeout, stdout, stderr)
+        duration_ms = int((time.perf_counter() - started) * 1000)
+        peak_memory = self._peak_memory(process)
 
         def decode(data: bytes) -> str:
             if data.startswith((b"\xff\xfe", b"\xfe\xff")):
@@ -72,7 +92,24 @@ class CoreConsoleExecutor:
                 return data.decode("utf-16-le", errors="replace")
             return data.decode("mbcs", errors="replace")
 
-        completed = subprocess.CompletedProcess(args, raw.returncode, decode(raw.stdout), decode(raw.stderr))
+        completed = CoreConsoleResult(args, process.returncode, decode(stdout), decode(stderr), duration_ms, peak_memory)
         if completed.returncode:
             raise subprocess.CalledProcessError(completed.returncode, args, completed.stdout, completed.stderr)
         return completed
+
+    @staticmethod
+    def _peak_memory(process: subprocess.Popen) -> int | None:
+        """Windows 进程句柄保留的 PeakWorkingSetSize；查询失败不影响 CAD 结果。"""
+        try:
+            import ctypes
+
+            class Counters(ctypes.Structure):
+                _fields_ = [("cb", ctypes.c_ulong), ("PageFaultCount", ctypes.c_ulong), ("PeakWorkingSetSize", ctypes.c_size_t), ("WorkingSetSize", ctypes.c_size_t), ("QuotaPeakPagedPoolUsage", ctypes.c_size_t), ("QuotaPagedPoolUsage", ctypes.c_size_t), ("QuotaPeakNonPagedPoolUsage", ctypes.c_size_t), ("QuotaNonPagedPoolUsage", ctypes.c_size_t), ("PagefileUsage", ctypes.c_size_t), ("PeakPagefileUsage", ctypes.c_size_t)]
+
+            counters = Counters()
+            counters.cb = ctypes.sizeof(counters)
+            if ctypes.windll.psapi.GetProcessMemoryInfo(int(process._handle), ctypes.byref(counters), counters.cb):
+                return int(counters.PeakWorkingSetSize)
+        except (AttributeError, OSError, ValueError):
+            pass
+        return None

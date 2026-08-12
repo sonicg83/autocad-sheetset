@@ -35,6 +35,10 @@ class TemplateRequest(BaseModel):
     cad_version: str = "2020"
 
 
+class RestoreRevisionRequest(BaseModel):
+    base_revision_id: str
+
+
 def _workspace_json(workspace) -> dict[str, Any]:
     return {
         "id": workspace.id,
@@ -58,7 +62,7 @@ def _workspace_json(workspace) -> dict[str, Any]:
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
-    app = FastAPI(title="DST Manager MVP", version="0.1.0")
+    app = FastAPI(title="DST Manager", version="0.2.0")
     service = DstManagerService(settings)
     app.state.service = service
 
@@ -101,18 +105,20 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.get("/api/jobs/{job_id}")
     def job(job_id: str):
-        result = service.database.get_job(job_id)
-        if result is None:
-            raise HTTPException(404, "任务不存在")
-        return result
+        return service.get_job_details(job_id)
+
+    @app.post("/api/jobs/{job_id}/retry")
+    def retry_job(job_id: str):
+        return service.retry_job(job_id)
 
     @app.get("/api/jobs/{job_id}/events")
     async def job_events(job_id: str):
         async def events():
             previous = None
             while True:
-                result = service.database.get_job(job_id)
-                if result is None:
+                try:
+                    result = service.get_job_details(job_id)
+                except ApplicationError:
                     yield "event: error\ndata: {\"code\":\"JOB_NOT_FOUND\"}\n\n"
                     return
                 current = json.dumps(result, ensure_ascii=False)
@@ -125,8 +131,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return StreamingResponse(events(), media_type="text/event-stream")
 
     @app.get("/api/revisions")
-    def revisions():
-        return service.database.list_revisions()
+    def revisions(workspace_id: str | None = None):
+        return service.database.list_revisions(workspace_id)
+
+    @app.get("/api/workspaces/{workspace_id}/revisions/{revision_id}/restore-preview")
+    def restore_preview(workspace_id: str, revision_id: str):
+        return service.preview_revision_restore(workspace_id, revision_id)
+
+    @app.post("/api/workspaces/{workspace_id}/revisions/{revision_id}/restore")
+    def restore_revision(workspace_id: str, revision_id: str, request: RestoreRevisionRequest):
+        return service.restore_revision(workspace_id, revision_id, request.base_revision_id)
 
     @app.get("/api/system/cad-capabilities")
     def capabilities():

@@ -1,4 +1,7 @@
+import json
+import re
 import shutil
+import socket
 import tempfile
 import uuid
 from dataclasses import asdict
@@ -47,6 +50,7 @@ class DstManagerService:
                     self.database.update_job(operation_id, JobStatus.ROLLED_BACK, 0, "STARTUP_RECOVERY")
                 except KeyError:
                     pass
+        self.database.recover_stale_jobs(self.settings.worker_lease_seconds)
 
     def open_workspace(self, dst_path: Path, root_override: Path | None = None) -> Workspace:
         dst_path = dst_path.expanduser().resolve()
@@ -167,13 +171,142 @@ class DstManagerService:
         return self.database.get_job(job_id) or {}
 
     def run_next_job(self) -> dict[str, Any] | None:
-        job = self.database.claim_next_job()
+        worker_id = f"{socket.gethostname()}-{uuid.uuid4().hex[:8]}"
+        job = self.database.claim_next_job(worker_id)
         if job is None:
             return None
         workspace = self.get_workspace(job["workspace_id"])
         capability = self._capability(job["cad_version"] or "2020")
-        runner = CadJobRunner(self.database, self.codec, self.publisher, self.settings.cad_timeout_seconds)
+        runner = CadJobRunner(
+            self.database,
+            self.codec,
+            self.publisher,
+            self.settings.cad_timeout_seconds,
+            self.settings.cad_max_parallel,
+        )
         return runner.run(job, workspace, capability)
+
+    def retry_job(self, job_id: str) -> dict[str, Any]:
+        try:
+            return self.database.retry_job(job_id)
+        except KeyError as exc:
+            raise ApplicationError("JOB_NOT_FOUND", "任务不存在", 404) from exc
+        except ValueError as exc:
+            raise ApplicationError("JOB_NOT_RETRYABLE", "当前任务状态不允许重试", 409) from exc
+        except WorkspaceBusyError as exc:
+            raise ApplicationError("WORKSPACE_WRITE_BUSY", str(exc), 409) from exc
+
+    def get_job_details(self, job_id: str) -> dict[str, Any]:
+        job = self.database.get_job(job_id)
+        if job is None:
+            raise ApplicationError("JOB_NOT_FOUND", "任务不存在", 404)
+        row = self.database.get_workspace(job["workspace_id"])
+        root = Path(row.root) if row else None
+        files = []
+        for item in job["files"]:
+            public = dict(item)
+            log_value = public.get("log_path")
+            if log_value and Path(log_value).is_file():
+                text = Path(log_value).read_text(encoding="utf-8", errors="replace")[-4000:]
+                text = re.sub(r"(?i)(api[_-]?key|token|secret|password)\s*[:=]\s*\S+", r"\1=<REDACTED>", text)
+                if root:
+                    text = text.replace(str(root), "<WORKSPACE>")
+                text = text.replace(str(Path.home()), "<USER_HOME>")
+                public["log_summary"] = text
+            for key in ("target_path", "source_path", "log_path"):
+                value = public.get(key)
+                if value and root:
+                    try:
+                        public[key] = str(Path(value).resolve().relative_to(root.resolve()))
+                    except ValueError:
+                        public[key] = Path(value).name
+            files.append(public)
+        job["files"] = files
+        job["summary"] = {
+            "total": len(files),
+            "succeeded": sum(item["status"] == "SUCCEEDED" for item in files),
+            "failed": sum(item["status"] == "FAILED" for item in files),
+            "duration_ms": sum(item.get("duration_ms") or 0 for item in files),
+        }
+        suggestions = {
+            "CAD_CAPABILITY_UNAVAILABLE": "配置匹配版本的 Core Console 和 Worker 插件后重试。",
+            "BLOCKED_FILE_LOCK": "关闭占用目标 DST/DWG 的程序后重试。",
+            "TEMPLATE_CHANGED": "模板已变化，请重新预览后提交。",
+            "CAD_TIMEOUT": "检查 CAD 日志、图纸复杂度和超时设置后重试。",
+            "STAGING_DISK_SPACE_INSUFFICIENT": "释放工作区磁盘空间后重试。",
+            "HANDLE_LAYOUT_MISMATCH": "检查模板布局名和 Worker 插件版本。",
+            "PUBLISH_JOURNAL_REVIEW_REQUIRED": "先核对发布日志并完成恢复，禁止直接重跑。",
+        }
+        job["suggestion"] = suggestions.get(job["error_code"], "查看逐 DWG 日志和错误详情后决定是否重试。" if job["error_code"] else None)
+        return job
+
+    def preview_revision_restore(self, workspace_id: str, revision_id: str) -> dict[str, Any]:
+        workspace_row = self.database.get_workspace(workspace_id)
+        if workspace_row is None:
+            raise ApplicationError("WORKSPACE_NOT_FOUND", "工作区不存在", 404)
+        workspace_root = Path(workspace_row.root)
+        dst_path = Path(workspace_row.dst_path)
+        revision = self.database.get_revision(revision_id)
+        if revision is None or revision["workspace_id"] != workspace_id:
+            raise ApplicationError("REVISION_NOT_FOUND", "修订不存在", 404)
+        manifest_path = Path(revision["revision_dir"]) / "manifest.json"
+        if not manifest_path.is_file():
+            raise ApplicationError("REVISION_MANIFEST_MISSING", "修订清单缺失", 409)
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        files = []
+        conflicts = []
+        for entry in manifest["files"]:
+            target = Path(entry["target"])
+            current_hash = file_sha256(target) if target.exists() else None
+            expected_hash = entry.get("result_hash")
+            conflict = current_hash != expected_hash
+            action = "replace" if entry.get("backup") else "delete"
+            item = {"path": str(target.relative_to(workspace_root)), "action": action, "current_hash": current_hash, "expected_hash": expected_hash, "restore_hash": entry.get("before_hash"), "conflict": conflict}
+            files.append(item)
+            if conflict:
+                conflicts.append(item["path"])
+        return {"workspace_id": workspace_id, "revision_id": revision_id, "base_revision_id": file_sha256(dst_path), "files": files, "conflicts": conflicts, "executable": not conflicts}
+
+    def restore_revision(self, workspace_id: str, revision_id: str, base_revision_id: str) -> dict[str, Any]:
+        preview = self.preview_revision_restore(workspace_id, revision_id)
+        if preview["base_revision_id"] != base_revision_id or not preview["executable"]:
+            raise ApplicationError("REVISION_RESTORE_CONFLICT", "当前文件已变化，请重新预览恢复", 409)
+        workspace = self.get_workspace(workspace_id)
+        revision = self.database.get_revision(revision_id)
+        manifest = json.loads((Path(revision["revision_dir"]) / "manifest.json").read_text(encoding="utf-8"))
+        job_id = str(uuid.uuid4())
+        try:
+            self.database.create_job(job_id, workspace_id, "revision_restore", JobStatus.STAGING, {"base_revision_id": base_revision_id, "source_revision_id": revision_id})
+        except WorkspaceBusyError as exc:
+            raise ApplicationError("WORKSPACE_WRITE_BUSY", str(exc), 409) from exc
+        staging_dir = workspace.root / ".dst-manager" / "jobs" / job_id / "staging"
+        staging_dir.mkdir(parents=True, exist_ok=True)
+        staged: dict[Path, Path | None] = {}
+        for index, entry in enumerate(manifest["files"]):
+            target = Path(entry["target"])
+            if entry.get("backup"):
+                source = Path(entry["backup"])
+                staged_copy = staging_dir / f"{index:03d}-{target.name}"
+                shutil.copy2(source, staged_copy)
+                staged[target] = staged_copy
+            else:
+                staged[target] = None
+        self.database.update_job(job_id, JobStatus.PREPARED, 70)
+        before_hash = file_sha256(workspace.dst_path)
+        self.database.update_job(job_id, JobStatus.PUBLISHING, 90)
+        try:
+            revision_dir = self.publisher.publish(job_id, workspace.root, staged)
+        except PublishRolledBackError as exc:
+            self.database.update_job(job_id, JobStatus.ROLLED_BACK, 0, exc.code)
+            return self.database.get_job(job_id) or {}
+        result_hash = file_sha256(workspace.dst_path)
+        record_id = f"restore-{job_id}"
+        self.database.add_revision(record_id, workspace_id, job_id, before_hash, result_hash, revision_dir, current_revision=result_hash)
+        workspace_row = self.database.get_workspace(workspace_id)
+        write_workspace_metadata(workspace.root, workspace.id, workspace.dst_path, result_hash, workspace_row.default_cad_version if workspace_row else "2020")
+        self.database.update_job(job_id, JobStatus.SUCCEEDED, 100)
+        append_operation_event(workspace.root, job_id, "REVISION_RESTORED", source_revision_id=revision_id, revision_id=record_id)
+        return self.database.get_job(job_id) or {}
 
     def preview_xml(self, workspace_id: str, base_revision_id: str, xml: bytes) -> dict[str, Any]:
         workspace = self.get_workspace(workspace_id)

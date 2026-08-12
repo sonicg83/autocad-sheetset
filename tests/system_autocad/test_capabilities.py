@@ -6,12 +6,14 @@ import pytest
 
 from dst_manager.application.service import DstManagerService
 from dst_manager.config import Settings
+from dst_manager.infrastructure.acsm_xml import AcsmDocument
 from dst_manager.infrastructure.autocad.worker import (
     CadCapability,
     CoreConsoleExecutor,
     ScriptRenderer,
     parse_handles,
 )
+from dst_manager.infrastructure.dst_codec import DstCodec
 
 _SAMPLE_PROJECT = Path(__file__).parents[2] / "sample" / "project1"
 pytestmark = [
@@ -61,12 +63,49 @@ def test_structural_title_change_rebuilds_dwg_and_dst(version: str, tmp_path: Pa
     assert job["status"] == "QUEUED"
     result = service.run_next_job()
     assert result and result["status"] == "SUCCEEDED", result
+    assert len(result["files"]) == 1
+    assert result["files"][0]["duration_ms"] > 0
+    assert result["files"][0]["peak_memory_bytes"] > 0
+    assert result["files"][0]["staging_bytes"] > 0
     reopened = service.open_workspace(tmp_path / "图纸集数据文件.dst")
     changed = reopened.document.subsets[0].sheets[0]
     assert changed.title == "封面测试"
     assert changed.layout.layout_name == "0000 封面测试"
     assert changed.layout.handle
     assert (tmp_path / ".dst-manager" / "revisions" / result["id"] / "before" / "图纸集数据文件.dst").is_file()
+
+
+@pytest.mark.parametrize("version", ["2016", "2020"])
+def test_five_dwg_groups_run_with_bounded_parallelism(version: str, tmp_path: Path):
+    root = Path(__file__).parents[2]
+    source_project = root / "sample/project1"
+    dst_name = "图纸集数据文件.dst"
+    shutil.copy2(source_project / dst_name, tmp_path / dst_name)
+    source_document = AcsmDocument(DstCodec().decode_file(source_project / dst_name)).project(source_project)
+    sheets = [subset.sheets[0] for subset in source_document.subsets[:5]]
+    for drawing in {sheet.layout.resolved_path for sheet in sheets}:
+        shutil.copy2(drawing, tmp_path / drawing.name)
+    settings = Settings(
+        data_dir=tmp_path / "data",
+        autocad_2016_console=Path("C:/Program Files/Autodesk/AutoCAD 2016/accoreconsole.exe"),
+        autocad_2016_plugin=root / "plugins/autocad2016/DstManager.AutoCAD.dll",
+        autocad_2020_console=Path("C:/Program Files/Autodesk/AutoCAD 2020/accoreconsole.exe"),
+        autocad_2020_plugin=root / "plugins/autocad2020/DstManager.AutoCAD.dll",
+        cad_timeout_seconds=180,
+        cad_max_parallel=2,
+    )
+    service = DstManagerService(settings)
+    workspace = service.open_workspace(tmp_path / dst_name)
+    commands = [{"type": "update_sheet", "sheet_id": subset.sheets[0].acsm_id, "title": f"{subset.sheets[0].title}-并行"} for subset in workspace.document.subsets[:5]]
+    job = service.execute_changes(workspace.id, workspace.revision_id, commands, version)
+    assert job["status"] == "QUEUED"
+    result = service.run_next_job()
+    assert result and result["status"] == "SUCCEEDED", result
+    assert len(result["files"]) == 5
+    assert all(item["status"] == "SUCCEEDED" for item in result["files"])
+    assert all(item["duration_ms"] > 0 and item["peak_memory_bytes"] > 0 for item in result["files"])
+    reopened = service.open_workspace(tmp_path / dst_name)
+    assert all(subset.sheets[0].title.endswith("-并行") for subset in reopened.document.subsets[:5])
 
 
 @pytest.mark.parametrize("version", ["2016", "2020"])
