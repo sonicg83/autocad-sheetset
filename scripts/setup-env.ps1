@@ -1,4 +1,4 @@
-# 自动设置 DST Manager 环境变量
+﻿# 自动设置 DST Manager 环境变量
 # 用法（点源，让变量保留在当前会话）：
 #   . .\scripts\setup-env.ps1
 # 若已加入 $PROFILE，则每次打开终端且位于本项目目录时自动生效。

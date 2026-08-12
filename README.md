@@ -4,6 +4,32 @@
 
 新实现位于 `src/dst_manager`，提供 DST/XML 编解码、AcSm DOM 投影与校验、路径重定位、SQLite 任务/修订索引、可恢复发布、Core Console 边界、FastAPI、CLI 和 Vue 3 操作界面。
 
+### 一键启动
+
+在项目根目录打开 PowerShell，运行：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start.ps1
+```
+
+脚本会初始化环境、同步 Python 依赖、构建 Web、升级数据库，并在后台启动 Web/API 和 CAD Worker。服务就绪后默认打开 `http://127.0.0.1:8000`。
+
+```powershell
+# 查看状态
+.\scripts\start.ps1 -Action Status
+
+# 停止 API 与 Worker
+.\scripts\start.ps1 -Action Stop
+
+# 快速启动：复用现有依赖和 Web 构建
+.\scripts\start.ps1 -SkipSync -SkipWebBuild
+
+# 只启动 Web/API，不启动 CAD Worker，也不打开浏览器
+.\scripts\start.ps1 -NoWorker -NoBrowser
+```
+
+运行日志保存在 `.dst-manager-data/runtime/`，该目录不会提交到仓库。
+
 ### 环境变量与启动
 
 运行 `scripts/setup-env.ps1` 自动设置环境（需在项目根目录点源，使变量保留在当前会话）：
