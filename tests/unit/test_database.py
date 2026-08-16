@@ -1,3 +1,4 @@
+import hashlib
 import sqlite3
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
@@ -10,6 +11,19 @@ from dst_manager.infrastructure.persistence.database import (
     InvalidJobTransitionError,
     WorkspaceBusyError,
 )
+
+
+def test_published_migrations_are_immutable():
+    expected = {
+        "0001_initial.py": "d19d09f9984eaa7bfe93932fb9971583f5c08bc28bed0c26a79b8f54af9df4f1",
+        "0002_v02_job_reliability.py": "f318c1c9c0de34f23d6d41fe3677ebb38a51f2d528a3449ada4f6ff81f7a122c",
+    }
+    migration_root = Path("migrations/versions")
+    actual = {
+        name: hashlib.sha256((migration_root / name).read_text(encoding="utf-8").replace("\r\n", "\n").encode()).hexdigest()
+        for name in expected
+    }
+    assert actual == expected, "已发布 migration 不可原地修改；schema 变化必须新增 revision"
 
 
 def test_workspace_allows_only_one_active_write_job(tmp_path: Path):
@@ -87,4 +101,22 @@ def test_outdated_schema_is_rejected_when_migration_is_disabled(tmp_path: Path):
     with sqlite3.connect(path) as connection:
         connection.execute("UPDATE alembic_version SET version_num='0001_initial'")
     with pytest.raises(RuntimeError, match="DATABASE_SCHEMA_INCOMPATIBLE.*alembic upgrade head"):
+        Database(f"sqlite:///{path.as_posix()}", migrate=False)
+
+
+@pytest.mark.parametrize(
+    ("damage_sql", "missing"),
+    [
+        ("DROP TABLE job_events", "缺少表=job_events"),
+        ("ALTER TABLE jobs DROP COLUMN error_detail", "缺少列=jobs.error_detail"),
+    ],
+)
+def test_latest_revision_with_physical_schema_drift_is_rejected(tmp_path: Path, damage_sql: str, missing: str):
+    path = tmp_path / "drift.sqlite"
+    database = Database(f"sqlite:///{path.as_posix()}")
+    database.engine.dispose()
+    with sqlite3.connect(path) as connection:
+        connection.execute(damage_sql)
+
+    with pytest.raises(RuntimeError, match=f"DATABASE_SCHEMA_DRIFT.*{missing}"):
         Database(f"sqlite:///{path.as_posix()}", migrate=False)

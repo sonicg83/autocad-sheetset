@@ -215,6 +215,26 @@ class Database:
                 f"DATABASE_SCHEMA_INCOMPATIBLE: 当前={revision}，需要={LATEST_SCHEMA_REVISION}；"
                 "请运行 uv run alembic upgrade head"
             )
+        schema = inspect(self.engine)
+        physical_tables = set(schema.get_table_names())
+        expected_tables = set(Base.metadata.tables)
+        missing_tables = sorted(expected_tables - physical_tables)
+        missing_columns: list[str] = []
+        for table_name in sorted(expected_tables & physical_tables):
+            expected_columns = {column.name for column in Base.metadata.tables[table_name].columns}
+            physical_columns = {column["name"] for column in schema.get_columns(table_name)}
+            missing_columns.extend(f"{table_name}.{name}" for name in sorted(expected_columns - physical_columns))
+        if missing_tables or missing_columns:
+            details = []
+            if missing_tables:
+                details.append(f"缺少表={','.join(missing_tables)}")
+            if missing_columns:
+                details.append(f"缺少列={','.join(missing_columns)}")
+            raise RuntimeError(
+                "DATABASE_SCHEMA_DRIFT: Alembic revision 与物理 schema 不一致（"
+                + "；".join(details)
+                + "）；测试数据库请删除后运行 uv run alembic upgrade head 重建"
+            )
 
     def upsert_workspace(self, workspace_id: str, root: Path, dst_path: Path, revision: str, root_override: Path | None = None) -> None:
         with self.sessions.begin() as session:

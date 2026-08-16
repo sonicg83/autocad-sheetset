@@ -1,5 +1,16 @@
 # 变更记录
 
+## 2026-08-12（DST Manager v0.2.1）
+
+- Core Console 每次调用的 stdout/stderr 现在按“重建布局”和“读取布局 Handle”分段归档；非零退出时也会写入对应逐 DWG 日志，并在 Web 任务详情中展开显示。
+- 将 AcSm 自定义属性身份改为 `propname + Flags`：`Flags=1` 仅供 SheetSet 命令修改，`Flags=2` 仅供 Sheet 命令修改；投影、更新和克隆清空均按作用域隔离。
+- 按 AutoCAD 规范化行为处理空属性：缺失 `Value` 代表空值，语义未变化时保持 DOM，清空非空值时删除节点，非空写入按已验证的 `vt=8` 结构受控创建；重复/非法结构返回稳定业务错误码。
+- 预览阶段在 AcSm DOM 克隆上复用正式命令处理器，不依赖 CAD 的结构错误会使 `executable=false`，不再进入 Core Console 后才失败。
+- 重构 `scripts/start.ps1`：使用确定的虚拟环境 Python 入口、`run_id` 健康校验、精确项目进程树识别、重复实例保护、完整停止、独立运行日志目录、严格 UTF-8 校验、日志尾部查看和仅清理已停止实例的保留策略；旧根目录日志会保留原始 `.legacy.bin` 并生成可读 UTF-8 文本。
+- Worker stdout 收敛为单行任务摘要，AutoCAD 系统代码页输出统一解码、清理控制字符后以 UTF-8 归档；API 健康接口返回当前 `run_id`。
+- 数据库启动闸门同时校验 Alembic revision 与 SQLAlchemy 物理表/列，并用迁移哈希测试保护已发布 revision 不被原地修改。
+- 版本提升至 `0.2.1`，补充 AcSm、API、数据库、PowerShell 生命周期、日志字节、Worker 摘要、并发等价、双版本 AutoCAD 热修复和失败不发布回归测试。
+
 ## 2026-08-12（文档归档约定）
 
 - 更新 `AGENTS.md`，明确计划类、备忘/对话记录类和知识类文档分别归档到 `.planning/todos/`、`.planning/memos/` 和 `docs/`。

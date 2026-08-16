@@ -102,6 +102,27 @@ class DstManagerService:
                 execution_intent = build_structural_plan(workspace, commands)
             except PlanningError as exc:
                 diagnostics.append({"code": exc.code, "severity": "error", "message": str(exc)})
+        if not diagnostics:
+            try:
+                preview_dom = AcsmDocument(self.codec.decode_file(workspace.dst_path)).clone()
+                if structural:
+                    preview_dom.apply_structural_commands(commands, workspace.revision_id)
+                else:
+                    preview_dom.apply_metadata_commands(commands)
+                for issue in preview_dom.validate():
+                    if issue.severity == Severity.ERROR:
+                        diagnostics.append({"code": issue.code, "severity": "error", "message": issue.message, "object_id": issue.object_id})
+            except AcsmValidationError as exc:
+                code, _, detail = str(exc).partition(":")
+                messages = {
+                    "CUSTOM_PROPERTY_FLAGS_MISSING": "自定义属性缺少 Flags，无法确定属性作用域。",
+                    "CUSTOM_PROPERTY_FLAGS_INVALID": "自定义属性的 Flags 无效，无法确定属性作用域。",
+                    "CUSTOM_PROPERTY_SCOPE_MISMATCH": "自定义属性作用域与当前编辑对象不一致。",
+                    "CUSTOM_PROPERTY_DUPLICATED": "同一作用域中存在重复的同名自定义属性。",
+                    "CUSTOM_PROPERTY_VALUE_DUPLICATED": "自定义属性存在多个 Value，无法安全选择写入目标。",
+                    "CUSTOM_PROPERTY_NOT_FOUND": "找不到要更新的自定义属性定义。",
+                }
+                diagnostics.append({"code": code, "severity": "error", "message": messages.get(code, "AcSm 结构不支持当前修改。"), "property_name": detail.strip() or None})
         affected = {str(workspace.dst_path)}
         if execution_intent:
             affected.update(group["target_file"] for group in execution_intent["groups"])

@@ -28,6 +28,7 @@ from dst_manager.infrastructure.filesystem.publisher import (
     file_sha256,
 )
 from dst_manager.infrastructure.filesystem.workspace import write_workspace_metadata
+from dst_manager.infrastructure.logging_text import sanitize_log_text
 from dst_manager.infrastructure.operation_log import append_operation_event
 from dst_manager.infrastructure.persistence import Database
 
@@ -228,16 +229,18 @@ class CadJobRunner:
         self.database.upsert_job_file(job_id, target, source_path=str(source_target), status="RUNNING", progress=5, log_path=str(log_path), before_hash=file_sha256(source_target))
         rebuild_script.write_text(self.renderer.render_rebuild(capability.plugin, group["layouts"]), encoding="mbcs")
         output = ""
+        phase = "重建布局"
         try:
             completed = self.executor.run(capability, staged, rebuild_script, unit.timeout)
             peak_memory = completed.peak_memory_bytes
-            output += (completed.stdout or "") + (completed.stderr or "")
+            output += self._format_console_output(phase, completed.stdout, completed.stderr)
             handle_script = unit.scripts_dir / f"handles-{group_index:03d}.scr"
             handle_script.write_text(self.renderer.render_handles(capability.plugin), encoding="mbcs")
+            phase = "读取布局 Handle"
             completed = self.executor.run(capability, staged, handle_script, unit.timeout)
             peak_memory = max(value for value in (peak_memory, completed.peak_memory_bytes) if value is not None) if any(value is not None for value in (peak_memory, completed.peak_memory_bytes)) else None
-            output += (completed.stdout or "") + (completed.stderr or "")
-            log_path.write_text(output, encoding="utf-8")
+            output += self._format_console_output(phase, completed.stdout, completed.stderr)
+            log_path.write_text(sanitize_log_text(output), encoding="utf-8")
             handles = parse_handles(staged.with_suffix(".dst-handles.txt").read_text(encoding="utf-8"))
             expected = {layout["target_layout"] for layout in group["layouts"]}
             if set(handles) != expected:
@@ -248,13 +251,31 @@ class CadJobRunner:
             self.database.upsert_job_file(job_id, target, status="SUCCEEDED", progress=100, duration_ms=duration_ms, peak_memory_bytes=peak_memory, staging_bytes=staging_bytes, result_hash=file_sha256(staged))
             return RebuildResult(group_index, target, source_target, staged, bindings, duration_ms, log_path, peak_memory, staging_bytes)
         except Exception as exc:
+            if isinstance(exc, subprocess.CalledProcessError):
+                stdout = exc.stdout if exc.stdout is not None else exc.output
+                output += self._format_console_output(phase, stdout, exc.stderr, exc.returncode)
             duration_ms = int((time.perf_counter() - started) * 1000)
-            log_path.write_text(output + "\n" + repr(exc), encoding="utf-8")
+            log_path.write_text(sanitize_log_text(output + "\n" + repr(exc)), encoding="utf-8")
             self.database.upsert_job_file(job_id, target, status="FAILED", progress=0, duration_ms=duration_ms, error_code=getattr(exc, "code", type(exc).__name__.upper()), error_detail=str(exc))
             raise
+
+    @staticmethod
+    def _format_console_output(phase: str, stdout: str | bytes | None, stderr: str | bytes | None, returncode: int = 0) -> str:
+        """将每次 Core Console 调用的两个输出流完整归档，并标记所属阶段。"""
+        def text(value: str | bytes | None) -> str:
+            if value is None:
+                return ""
+            if isinstance(value, bytes):
+                return value.decode("mbcs", errors="replace")
+            return value
+
+        return (
+            f"\n===== Core Console：{phase}（退出码 {returncode}）stdout =====\n{text(stdout)}"
+            f"\n===== Core Console：{phase}（退出码 {returncode}）stderr =====\n{text(stderr)}\n"
+        )
 
     @staticmethod
     def _write_failure_log(workspace: Workspace, job_id: str, attempt: int, stdout: str, stderr: str) -> None:
         path = workspace.root / ".dst-manager" / "jobs" / job_id / f"attempt-{attempt:03d}" / "logs" / "failure.log"
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(stdout + "\n" + stderr, encoding="utf-8")
+        path.write_text(sanitize_log_text(stdout + "\n" + stderr), encoding="utf-8")

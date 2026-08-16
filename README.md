@@ -18,6 +18,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start.ps1
 # 查看状态
 .\scripts\start.ps1 -Action Status
 
+# 查看当前运行实例的 UTF-8 日志尾部
+.\scripts\start.ps1 -Action Logs
+
 # 停止 API 与 Worker
 .\scripts\start.ps1 -Action Stop
 
@@ -28,7 +31,16 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start.ps1
 .\scripts\start.ps1 -NoWorker -NoBrowser
 ```
 
-运行日志保存在 `.dst-manager-data/runtime/`，该目录不会提交到仓库。
+每次启动都会生成独立的 `run_id`，运行日志保存在 `.dst-manager-data/runtime/<run-id>/`，该目录不会提交到仓库。API 健康检查会同时核对 `run_id`，避免端口仍由旧 API 监听时误报新实例成功；重复执行 `Start` 会复用当前实例，不会再创建 API 或 Worker。所有 stdout/stderr 都按严格 UTF-8 写入，Worker stdout 只输出单行任务摘要，完整 payload、文件路径、哈希和逐 DWG 详情仍保存在 SQLite 与工作区修订目录。
+
+### 启动与日志排障
+
+- `Status` 显示“状态文件失效”时，执行 `Stop` 会按规范化项目根目录和精确命令行清理本项目受管进程树；不会终止无关程序。
+- 端口被无关程序占用时，`Start` 会显示占用 PID 并失败，不会自动结束对方。关闭或调整该程序后再启动，也可通过 `-Port` 选择其他端口。
+- 检测到遗留或重复 Worker 时，必须先执行 `Stop`，确认 `Status` 中 API 与 Worker 均为“未运行”后再启动。
+- `Logs` 会安全显示最近运行实例的日志尾部；停止时脚本还会严格检查 UTF-8、NUL 和非法控制字符。
+- 每次运行日志独立保留；超过 20 个已停止实例或总大小超过 512 MiB 时，只清理最旧且已停止的实例，不删除当前运行日志。
+- 启动会同时核对 Alembic revision 和关键物理表/列。如果出现 `DATABASE_SCHEMA_DRIFT`，测试数据库可删除 `.dst-manager-data/dst-manager.db` 后重新执行 `Start`；不要修改已经发布的 migration，应新增 revision。
 
 ### 环境变量与启动
 

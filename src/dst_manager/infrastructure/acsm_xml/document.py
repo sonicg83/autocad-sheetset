@@ -18,7 +18,9 @@ _HANDLE_RE = re.compile(r"^[0-9A-Fa-f]+$")
 
 
 class AcsmValidationError(ValueError):
-    pass
+    @property
+    def code(self) -> str:
+        return str(self).split(":", 1)[0]
 
 
 def _children(node: etree._Element, name: str):
@@ -37,6 +39,22 @@ def _set_prop(node: etree._Element, name: str, value: str) -> None:
     if len(props) != 1:
         raise AcsmValidationError(f"CONTROLLED_PROPERTY_INVALID: {name}")
     props[0].text = value
+
+
+def _custom_property_scope(node: etree._Element) -> str:
+    flags = [child for child in _children(node, "AcSmProp") if child.get("propname") == "Flags"]
+    if not flags:
+        raise AcsmValidationError(f"CUSTOM_PROPERTY_FLAGS_MISSING: {node.get('propname', '')}")
+    if len(flags) != 1:
+        raise AcsmValidationError(f"CUSTOM_PROPERTY_FLAGS_INVALID: {node.get('propname', '')}")
+    scope = (flags[0].text or "").strip()
+    if scope not in {"1", "2"}:
+        raise AcsmValidationError(f"CUSTOM_PROPERTY_FLAGS_INVALID: {node.get('propname', '')}")
+    return scope
+
+
+def _custom_property_values(node: etree._Element) -> list[etree._Element]:
+    return [child for child in _children(node, "AcSmProp") if child.get("propname") == "Value"]
 
 
 class AcsmDocument:
@@ -76,14 +94,14 @@ class AcsmDocument:
                 for field, prop_name in (("number", "Number"), ("title", "Title")):
                     if field in command:
                         _set_prop(sheet, prop_name, str(command[field]))
-                self._set_custom_properties(sheet, command.get("custom_properties", {}))
+                self._set_custom_properties(sheet, command.get("custom_properties", {}), expected_scope="2")
             elif command_type == "update_sheet_set":
                 matches = self.root.xpath("//*[local-name()='AcSmSheetSet']")
                 if len(matches) != 1:
                     raise AcsmValidationError("SHEET_SET_INVALID")
                 if "name" in command:
                     _set_prop(matches[0], "Name", str(command["name"]))
-                self._set_custom_properties(matches[0], command.get("custom_properties", {}))
+                self._set_custom_properties(matches[0], command.get("custom_properties", {}), expected_scope="1")
             elif command_type == "update_subset":
                 subset_id = str(command.get("subset_id", ""))
                 matches = self.root.xpath("//*[@ID=$subset_id and local-name()='AcSmSubset']", subset_id=subset_id)
@@ -137,7 +155,7 @@ class AcsmDocument:
                     _set_prop(node, "Number", str(command["number"]))
                 if "title" in command:
                     _set_prop(node, "Title", str(command["title"]))
-                self._set_custom_properties(node, command.get("custom_properties", {}))
+                self._set_custom_properties(node, command.get("custom_properties", {}), expected_scope="2")
             elif kind in {"update_sheet_set", "update_subset"}:
                 self.apply_metadata_commands([command])
             elif kind == "renumber_sheets":
@@ -174,7 +192,7 @@ class AcsmDocument:
                 node.set("ID", new_acsm_id(base_revision, command_index))
                 _set_prop(node, "Number", str(command.get("number", "")))
                 _set_prop(node, "Title", str(command.get("title", "")))
-                self._set_custom_properties(node, command.get("custom_properties", {}), clear_others=True)
+                self._set_custom_properties(node, command.get("custom_properties", {}), expected_scope="2", clear_others=True)
                 insert_sheet(target, node, int(command.get("position", len(_children(target, "AcSmSheet")))))
             else:
                 raise AcsmValidationError(f"COMMAND_UNSUPPORTED: {kind}")
@@ -204,18 +222,78 @@ class AcsmDocument:
                 raise AcsmValidationError(f"SUBSET_NOT_FOUND: {subset_id}")
             _set_prop(matches[0], "Name", name)
 
-    def _set_custom_properties(self, sheet: etree._Element, values: dict, clear_others: bool = False) -> None:
-        custom_nodes = sheet.xpath("./*[local-name()='AcSmCustomPropertyBag']/*[local-name()='AcSmCustomPropertyValue']")
-        by_name = {node.get("propname", ""): node for node in custom_nodes}
+    def _set_custom_properties(self, owner: etree._Element, values: dict, *, expected_scope: str, clear_others: bool = False) -> None:
+        """按 AutoCAD 的 Value/Flags 语义更新已有自定义属性定义。"""
+        custom_nodes = owner.xpath("./*[local-name()='AcSmCustomPropertyBag']/*[local-name()='AcSmCustomPropertyValue']")
+        by_key: dict[tuple[str, str], etree._Element] = {}
+        scopes_by_name: dict[str, set[str]] = {}
+        value_nodes: dict[int, list[etree._Element]] = {}
+        for node in custom_nodes:
+            name = node.get("propname", "")
+            scope = _custom_property_scope(node)
+            key = (scope, name)
+            if key in by_key:
+                raise AcsmValidationError(f"CUSTOM_PROPERTY_DUPLICATED: {name}")
+            by_key[key] = node
+            scopes_by_name.setdefault(name, set()).add(scope)
+            found_values = _custom_property_values(node)
+            if len(found_values) > 1:
+                raise AcsmValidationError(f"CUSTOM_PROPERTY_VALUE_DUPLICATED: {name}")
+            value_nodes[id(node)] = found_values
+
         if clear_others:
-            for node in custom_nodes:
-                props = [item for item in _children(node, "AcSmProp") if item.get("propname") == "Value"]
-                if props:
-                    props[0].text = ""
-        for name, value in values.items():
-            if name not in by_name:
+            for (scope, _), node in by_key.items():
+                if scope != expected_scope:
+                    continue
+                for value_node in value_nodes[id(node)]:
+                    node.remove(value_node)
+                value_nodes[id(node)] = []
+
+        for raw_name, raw_value in values.items():
+            name, value = str(raw_name), str(raw_value)
+            node = by_key.get((expected_scope, name))
+            if node is None:
+                if name in scopes_by_name:
+                    raise AcsmValidationError(f"CUSTOM_PROPERTY_SCOPE_MISMATCH: {name}")
                 raise AcsmValidationError(f"CUSTOM_PROPERTY_NOT_FOUND: {name}")
-            _set_prop(by_name[name], "Value", str(value))
+            current_nodes = value_nodes[id(node)]
+            current_value = current_nodes[0].text or "" if current_nodes else ""
+            if current_value == value:
+                continue
+            if not value:
+                if current_nodes:
+                    node.remove(current_nodes[0])
+                    value_nodes[id(node)] = []
+                continue
+            if current_nodes:
+                current_nodes[0].text = value
+                continue
+            flags_node = next(child for child in _children(node, "AcSmProp") if child.get("propname") == "Flags")
+            value_node = etree.Element(flags_node.tag, {"propname": "Value", "vt": "8"})
+            value_node.text = value
+            value_node.tail = flags_node.tail
+            flags_node.addnext(value_node)
+            value_nodes[id(node)] = [value_node]
+
+    def _custom_property_issues(self) -> list[ValidationIssue]:
+        issues: list[ValidationIssue] = []
+        for owner in self.root.xpath("//*[local-name()='AcSmCustomPropertyBag']/.."):
+            seen: set[tuple[str, str]] = set()
+            for node in owner.xpath("./*[local-name()='AcSmCustomPropertyBag']/*[local-name()='AcSmCustomPropertyValue']"):
+                name = node.get("propname", "")
+                try:
+                    scope = _custom_property_scope(node)
+                except AcsmValidationError as exc:
+                    code = str(exc).split(":", 1)[0]
+                    issues.append(ValidationIssue(code, Severity.ERROR, f"自定义属性“{name}”的 Flags 无效", owner.get("ID")))
+                    continue
+                key = (scope, name)
+                if key in seen:
+                    issues.append(ValidationIssue("CUSTOM_PROPERTY_DUPLICATED", Severity.ERROR, f"自定义属性“{name}”重复", owner.get("ID")))
+                seen.add(key)
+                if len(_custom_property_values(node)) > 1:
+                    issues.append(ValidationIssue("CUSTOM_PROPERTY_VALUE_DUPLICATED", Severity.ERROR, f"自定义属性“{name}”存在多个 Value", owner.get("ID")))
+        return issues
 
     def _assert_no_external_id_reference(self, owned: etree._Element) -> None:
         owned_ids = {node.get("ID") for node in owned.xpath(".//*[@ID] | self::*[@ID]") if node.get("ID")}
@@ -229,7 +307,7 @@ class AcsmDocument:
                 raise AcsmValidationError(f"UNKNOWN_REFERENCE_BLOCKED: {node.get('ID', etree.QName(node).localname)}")
 
     def validate(self) -> list[ValidationIssue]:
-        issues: list[ValidationIssue] = []
+        issues: list[ValidationIssue] = self._custom_property_issues()
         seen: set[str] = set()
         sheet_sets = self.root.xpath("//*[local-name()='AcSmSheetSet']")
         if not sheet_sets:
@@ -284,12 +362,20 @@ class AcsmDocument:
                 )
                 custom: dict[str, str] = {}
                 for value in sheet_node.xpath("./*[local-name()='AcSmCustomPropertyBag']/*[local-name()='AcSmCustomPropertyValue']"):
-                    custom[value.get("propname", "")] = _prop(value, "Value")
+                    try:
+                        if _custom_property_scope(value) == "2":
+                            custom[value.get("propname", "")] = _prop(value, "Value")
+                    except AcsmValidationError:
+                        continue
                 subset.sheets.append(Sheet(sheet_node.get("ID", ""), _prop(sheet_node, "Number"), _prop(sheet_node, "Title"), layout, custom))
             subsets.append(subset)
         sheet_set_custom: dict[str, str] = {}
         for value in sheet_set.xpath("./*[local-name()='AcSmCustomPropertyBag']/*[local-name()='AcSmCustomPropertyValue']"):
-            sheet_set_custom[value.get("propname", "")] = _prop(value, "Value")
+            try:
+                if _custom_property_scope(value) == "1":
+                    sheet_set_custom[value.get("propname", "")] = _prop(value, "Value")
+            except AcsmValidationError:
+                continue
         document = SheetSetDocument(self.root.get("ID", ""), _prop(sheet_set, "Name"), subsets, sheet_set_custom, self.validate())
         self.resolve_paths(document, dst_dir, root_override)
         return document

@@ -4,7 +4,20 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 
+from dst_manager.infrastructure.logging_text import sanitize_log_text
+
 _UNSAFE = re.compile(r"[\r\n\x00-\x1f\"]")
+
+
+def decode_console_output(data: bytes) -> str:
+    """按 Core Console 的实际输出编码解码，再转换为安全日志文本。"""
+    if data.startswith((b"\xff\xfe", b"\xfe\xff")):
+        return sanitize_log_text(data.decode("utf-16", errors="replace"))
+    sample = data[:200]
+    odd_nuls = sample[1::2].count(0)
+    if odd_nuls >= 2 and odd_nuls >= len(sample[1::2]) // 4:
+        return sanitize_log_text(data.decode("utf-16-le", errors="replace"))
+    return sanitize_log_text(data.decode("mbcs", errors="replace"))
 
 
 def encode_scr_argument(value: str) -> str:
@@ -85,14 +98,7 @@ class CoreConsoleExecutor:
         duration_ms = int((time.perf_counter() - started) * 1000)
         peak_memory = self._peak_memory(process)
 
-        def decode(data: bytes) -> str:
-            if data.startswith((b"\xff\xfe", b"\xfe\xff")):
-                return data.decode("utf-16", errors="replace")
-            if b"\x00" in data[:200]:
-                return data.decode("utf-16-le", errors="replace")
-            return data.decode("mbcs", errors="replace")
-
-        completed = CoreConsoleResult(args, process.returncode, decode(stdout), decode(stderr), duration_ms, peak_memory)
+        completed = CoreConsoleResult(args, process.returncode, decode_console_output(stdout), decode_console_output(stderr), duration_ms, peak_memory)
         if completed.returncode:
             raise subprocess.CalledProcessError(completed.returncode, args, completed.stdout, completed.stderr)
         return completed

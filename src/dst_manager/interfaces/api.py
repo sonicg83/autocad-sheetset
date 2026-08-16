@@ -1,6 +1,6 @@
 import asyncio
 import json
-from dataclasses import asdict
+import os
 from pathlib import Path
 from typing import Any
 
@@ -11,6 +11,8 @@ from pydantic import BaseModel, Field
 
 from dst_manager.application.service import ApplicationError, DstManagerService
 from dst_manager.config import Settings
+from dst_manager.infrastructure.acsm_xml.document import AcsmValidationError
+from dst_manager.interfaces.serialization import workspace_json
 
 
 class OpenRequest(BaseModel):
@@ -39,30 +41,8 @@ class RestoreRevisionRequest(BaseModel):
     base_revision_id: str
 
 
-def _workspace_json(workspace) -> dict[str, Any]:
-    return {
-        "id": workspace.id,
-        "root": str(workspace.root),
-        "dst_path": str(workspace.dst_path),
-        "revision_id": workspace.revision_id,
-        "sheet_set": {
-            "database_id": workspace.document.database_id,
-            "name": workspace.document.name,
-            "custom_properties": workspace.document.custom_properties,
-            "sheet_count": len(workspace.document.sheets),
-            "subset_count": len(workspace.document.subsets),
-            "subsets": [
-                {"id": subset.acsm_id, "name": subset.name, "order": subset.order, "sheets": [{"id": sheet.acsm_id, "number": sheet.number, "title": sheet.title, "custom_properties": sheet.custom_properties, "layout": {**asdict(sheet.layout), "resolved_path": str(sheet.layout.resolved_path) if sheet.layout.resolved_path else None}} for sheet in subset.sheets]}
-                for subset in workspace.document.subsets
-            ],
-        },
-        "diagnostics": [asdict(issue) for issue in workspace.document.diagnostics],
-        "unreferenced_dwgs": [str(path) for path in workspace.unreferenced_dwgs],
-    }
-
-
 def create_app(settings: Settings | None = None) -> FastAPI:
-    app = FastAPI(title="DST Manager", version="0.2.0")
+    app = FastAPI(title="DST Manager", version="0.2.1")
     service = DstManagerService(settings)
     app.state.service = service
 
@@ -71,17 +51,23 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         from fastapi.responses import JSONResponse
         return JSONResponse(status_code=exc.status_code, content={"code": exc.code, "message": str(exc)})
 
+    @app.exception_handler(AcsmValidationError)
+    async def acsm_validation_error(_, exc: AcsmValidationError):
+        from fastapi.responses import JSONResponse
+        code, _, detail = str(exc).partition(":")
+        return JSONResponse(status_code=422, content={"code": code, "message": detail.strip() or "AcSm 结构校验失败"})
+
     @app.get("/api/health")
     def health():
-        return {"status": "ok"}
+        return {"status": "ok", "run_id": os.environ.get("DST_MANAGER_RUN_ID")}
 
     @app.post("/api/workspaces/open")
     def open_workspace(request: OpenRequest):
-        return _workspace_json(service.open_workspace(request.dst_path, request.root_override))
+        return workspace_json(service.open_workspace(request.dst_path, request.root_override))
 
     @app.get("/api/workspaces/{workspace_id}")
     def get_workspace(workspace_id: str):
-        return _workspace_json(service.get_workspace(workspace_id))
+        return workspace_json(service.get_workspace(workspace_id))
 
     @app.post("/api/workspaces/{workspace_id}/changes/preview")
     def preview(workspace_id: str, request: ChangeRequest):

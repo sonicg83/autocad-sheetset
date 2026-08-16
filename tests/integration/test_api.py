@@ -14,6 +14,13 @@ def test_read_only_open_does_not_create_workspace_metadata(tmp_path, tiny_worksp
     assert not (tmp_path / ".dst-manager").exists()
 
 
+def test_health_returns_current_run_id(tmp_path, monkeypatch):
+    monkeypatch.setenv("DST_MANAGER_RUN_ID", "run-test-123")
+    client = TestClient(create_app(Settings(data_dir=tmp_path / "data")))
+
+    assert client.get("/api/health").json() == {"status": "ok", "run_id": "run-test-123"}
+
+
 def test_open_preview_execute(tmp_path,tiny_workspace):
     dst,sheet_id=tiny_workspace; client=TestClient(create_app(Settings(data_dir=tmp_path/"data"))); opened=client.post("/api/workspaces/open",json={"dst_path":str(dst)}).json(); assert opened["sheet_set"]["sheet_count"]==1
     payload={"base_revision_id":opened["revision_id"],"commands":[{"type":"update_sheet","sheet_id":sheet_id,"custom_properties":{"比例":"1:200"}}]}; assert client.post(f"/api/workspaces/{opened['id']}/changes/preview",json=payload).json()["requires_cad"] is False
@@ -25,6 +32,41 @@ def test_sheet_set_name_is_metadata_only(tmp_path,tiny_workspace):
     dst,_=tiny_workspace; client=TestClient(create_app(Settings(data_dir=tmp_path/"data"))); opened=client.post("/api/workspaces/open",json={"dst_path":str(dst)}).json(); payload={"base_revision_id":opened["revision_id"],"commands":[{"type":"update_sheet_set","name":"新图纸集"}]}
     assert client.post(f"/api/workspaces/{opened['id']}/changes/preview",json=payload).json()["requires_cad"] is False
     assert client.post(f"/api/workspaces/{opened['id']}/changes/execute",json=payload).json()["status"]=="SUCCEEDED"
+
+
+def test_preview_blocks_invalid_custom_property_before_job_creation(tmp_path, tiny_workspace):
+    dst, sheet_id = tiny_workspace
+    xml = DstCodec().decode_file(dst).replace(b'<AcSmProp propname="Flags" vt="3">2</AcSmProp>', b'<AcSmProp propname="Flags" vt="3">9</AcSmProp>', 1)
+    DstCodec().encode_file(xml, dst)
+    app = create_app(Settings(data_dir=tmp_path / "data"))
+    client = TestClient(app)
+    opened = client.post("/api/workspaces/open", json={"dst_path": str(dst)}).json()
+    payload = {"base_revision_id": opened["revision_id"], "commands": [{"type": "update_sheet", "sheet_id": sheet_id, "custom_properties": {"比例": "1:200"}}]}
+
+    preview = client.post(f"/api/workspaces/{opened['id']}/changes/preview", json=payload).json()
+
+    assert preview["executable"] is False
+    assert preview["diagnostics"][0]["code"] == "CUSTOM_PROPERTY_FLAGS_INVALID"
+    execution = client.post(f"/api/workspaces/{opened['id']}/changes/execute", json=payload)
+    assert execution.status_code == 400
+    assert execution.json() == {"code": "PLAN_INVALID", "message": "执行计划包含阻断诊断"}
+    assert "traceback" not in execution.text.lower()
+    with app.state.service.database.engine.connect() as connection:
+        assert connection.exec_driver_sql("SELECT COUNT(*) FROM jobs").scalar_one() == 0
+
+
+def test_full_form_empty_roundtrip_is_semantic_noop(tmp_path, tiny_workspace):
+    dst, sheet_id = tiny_workspace
+    xml = DstCodec().decode_file(dst).replace(b'<AcSmProp propname="Value" vt="8">1:100</AcSmProp>', b"", 1)
+    DstCodec().encode_file(xml, dst)
+    client = TestClient(create_app(Settings(data_dir=tmp_path / "data")))
+    opened = client.post("/api/workspaces/open", json={"dst_path": str(dst)}).json()
+    payload = {"base_revision_id": opened["revision_id"], "commands": [{"type": "update_sheet", "sheet_id": sheet_id, "custom_properties": {"比例": ""}}]}
+
+    preview = client.post(f"/api/workspaces/{opened['id']}/changes/preview", json=payload).json()
+
+    assert preview["executable"] is True
+    assert preview["requires_cad"] is False
 
 def test_xml_preview_and_export_are_revisioned(tmp_path,tiny_workspace):
     dst,_=tiny_workspace; client=TestClient(create_app(Settings(data_dir=tmp_path/"data"))); opened=client.post("/api/workspaces/open",json={"dst_path":str(dst)}).json(); xml=DstCodec().decode_file(dst).decode().replace("平面</AcSmProp>","导入标题</AcSmProp>")

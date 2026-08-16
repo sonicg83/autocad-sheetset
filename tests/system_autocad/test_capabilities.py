@@ -1,5 +1,7 @@
+import hashlib
 import os
 import shutil
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -7,6 +9,7 @@ import pytest
 from dst_manager.application.service import DstManagerService
 from dst_manager.config import Settings
 from dst_manager.infrastructure.acsm_xml import AcsmDocument
+from dst_manager.infrastructure.acsm_xml.document import AcsmValidationError
 from dst_manager.infrastructure.autocad.worker import (
     CadCapability,
     CoreConsoleExecutor,
@@ -73,6 +76,77 @@ def test_structural_title_change_rebuilds_dwg_and_dst(version: str, tmp_path: Pa
     assert changed.layout.layout_name == "0000 封面测试"
     assert changed.layout.handle
     assert (tmp_path / ".dst-manager" / "revisions" / result["id"] / "before" / "图纸集数据文件.dst").is_file()
+
+
+@pytest.mark.parametrize("version", ["2016", "2020"])
+def test_missing_custom_value_insert_and_update_complete_before_publish(version: str, tmp_path: Path):
+    root = Path(__file__).parents[2]
+    source_project = root / "sample/project1"
+    dst_name = "图纸集数据文件.dst"
+    drawing_name = "GP-0000 封面.dwg"
+    shutil.copy2(source_project / dst_name, tmp_path / dst_name)
+    shutil.copy2(source_project / drawing_name, tmp_path / drawing_name)
+    settings = Settings(
+        data_dir=tmp_path / "data",
+        autocad_2016_console=Path("C:/Program Files/Autodesk/AutoCAD 2016/accoreconsole.exe"),
+        autocad_2016_plugin=root / "plugins/autocad2016/DstManager.AutoCAD.dll",
+        autocad_2020_console=Path("C:/Program Files/Autodesk/AutoCAD 2020/accoreconsole.exe"),
+        autocad_2020_plugin=root / "plugins/autocad2020/DstManager.AutoCAD.dll",
+        cad_timeout_seconds=180,
+    )
+    service = DstManagerService(settings)
+    workspace = service.open_workspace(tmp_path / dst_name)
+    subset = workspace.document.subsets[0]
+    existing = subset.sheets[0]
+    assert existing.custom_properties["备注"] == ""
+    commands = [
+        {"type": "update_sheet_set", "custom_properties": {"版本": "B"}},
+        {
+            "type": "update_sheet",
+            "sheet_id": existing.acsm_id,
+            "title": "封面热修复验证",
+            "custom_properties": {"备注": "", "出图比例": "1:500", "设计人": existing.custom_properties["设计人"]},
+        },
+        {
+            "type": "insert_sheet",
+            "target_subset_id": subset.acsm_id,
+            "position": 1,
+            "number": "0001",
+            "title": "新增热修复验证",
+            "custom_properties": {"备注": "", "出图比例": "1:500"},
+            "source": {"type": "template_layout", "file": str(existing.layout.resolved_path), "layout": existing.layout.layout_name},
+        },
+    ]
+    preview = service.preview_changes(workspace.id, workspace.revision_id, commands)
+    assert preview["executable"] is True, preview
+    job = service.execute_changes(workspace.id, workspace.revision_id, commands, version)
+    assert job["status"] == "QUEUED", job
+
+    result = service.run_next_job()
+
+    assert result and result["status"] == "SUCCEEDED", result
+    reopened = service.open_workspace(tmp_path / dst_name)
+    final_subset = reopened.document.subsets[0]
+    assert reopened.document.custom_properties["版本"] == "B"
+    assert [sheet.title for sheet in final_subset.sheets] == ["封面热修复验证", "新增热修复验证"]
+    assert all(sheet.custom_properties["备注"] == "" for sheet in final_subset.sheets)
+    assert all(sheet.custom_properties["出图比例"] == "1:500" for sheet in final_subset.sheets)
+    xml = AcsmDocument(DstCodec().decode_file(tmp_path / dst_name))
+    sheetset_remark_values = xml.root.xpath(
+        "//*[local-name()='AcSmSheetSet']/*[local-name()='AcSmCustomPropertyBag']"
+        "/*[local-name()='AcSmCustomPropertyValue' and @propname='备注']"
+        "/*[local-name()='AcSmProp' and @propname='Value']"
+    )
+    assert sheetset_remark_values == []
+    for sheet in final_subset.sheets:
+        value_nodes = xml.root.xpath(
+            "//*[@ID=$sheet_id and local-name()='AcSmSheet']"
+            "/*[local-name()='AcSmCustomPropertyBag']"
+            "/*[local-name()='AcSmCustomPropertyValue' and @propname='备注']"
+            "/*[local-name()='AcSmProp' and @propname='Value']",
+            sheet_id=sheet.acsm_id,
+        )
+        assert value_nodes == []
 
 
 @pytest.mark.parametrize("version", ["2016", "2020"])
@@ -171,3 +245,137 @@ def test_largest_25_layout_group_rebuilds_in_order(version: str, tmp_path: Path)
     job=service.execute_changes(workspace.id,workspace.revision_id,[{"type":"renumber_sheets","subset_id":subset.acsm_id,"start":38,"width":4}],version); assert job["status"]=="QUEUED"
     result=service.run_next_job(); assert result and result["status"]=="SUCCEEDED",result
     rebuilt=service.open_workspace(tmp_path/"图纸集数据文件.dst").document.subsets[14].sheets; assert len(rebuilt)==25; assert [sheet.number for sheet in rebuilt]==[str(value).zfill(4) for value in range(38,63)]; assert len({sheet.layout.handle for sheet in rebuilt})==25
+
+
+@pytest.mark.parametrize("version", ["2016", "2020"])
+def test_parallel_one_and_two_produce_equivalent_results(version: str, tmp_path: Path):
+    root = Path(__file__).parents[2]
+    source_project = root / "sample/project1"
+    source_document = AcsmDocument(DstCodec().decode_file(source_project / "图纸集数据文件.dst")).project(source_project)
+    source_sheets = [subset.sheets[0] for subset in source_document.subsets[:2]]
+    outcomes = []
+    for parallel in (1, 2):
+        project = tmp_path / f"parallel-{parallel}"
+        project.mkdir()
+        shutil.copy2(source_project / "图纸集数据文件.dst", project / "图纸集数据文件.dst")
+        for drawing in {sheet.layout.resolved_path for sheet in source_sheets}:
+            shutil.copy2(drawing, project / drawing.name)
+        settings = Settings(
+            data_dir=project / "data",
+            autocad_2016_console=Path("C:/Program Files/Autodesk/AutoCAD 2016/accoreconsole.exe"),
+            autocad_2016_plugin=root / "plugins/autocad2016/DstManager.AutoCAD.dll",
+            autocad_2020_console=Path("C:/Program Files/Autodesk/AutoCAD 2020/accoreconsole.exe"),
+            autocad_2020_plugin=root / "plugins/autocad2020/DstManager.AutoCAD.dll",
+            cad_timeout_seconds=180,
+            cad_max_parallel=parallel,
+        )
+        service = DstManagerService(settings)
+        workspace = service.open_workspace(project / "图纸集数据文件.dst")
+        commands = [
+            {"type": "update_sheet", "sheet_id": subset.sheets[0].acsm_id, "title": f"{subset.sheets[0].title}-等价"}
+            for subset in workspace.document.subsets[:2]
+        ]
+        job = service.execute_changes(workspace.id, workspace.revision_id, commands, version)
+        assert job["status"] == "QUEUED"
+        result = service.run_next_job()
+        assert result and result["status"] == "SUCCEEDED", result
+        reopened = service.open_workspace(project / "图纸集数据文件.dst")
+        outcomes.append(
+            [
+                (sheet.acsm_id, sheet.number, sheet.title, sheet.layout.layout_name)
+                for subset in reopened.document.subsets[:2]
+                for sheet in subset.sheets
+            ]
+        )
+    assert outcomes[0] == outcomes[1]
+
+
+@pytest.mark.parametrize("version", ["2016", "2020"])
+def test_injected_second_dwg_failure_never_publishes_partial_files(version: str, tmp_path: Path, monkeypatch):
+    root = Path(__file__).parents[2]
+    source_project = root / "sample/project1"
+    dst_name = "图纸集数据文件.dst"
+    shutil.copy2(source_project / dst_name, tmp_path / dst_name)
+    source_document = AcsmDocument(DstCodec().decode_file(source_project / dst_name)).project(source_project)
+    source_sheets = [subset.sheets[0] for subset in source_document.subsets[:2]]
+    for drawing in {sheet.layout.resolved_path for sheet in source_sheets}:
+        shutil.copy2(drawing, tmp_path / drawing.name)
+    formal_files = [tmp_path / dst_name, *(tmp_path / sheet.layout.resolved_path.name for sheet in source_sheets)]
+    before = {path.name: hashlib.sha256(path.read_bytes()).hexdigest() for path in formal_files}
+    original_run = CoreConsoleExecutor.run
+    calls = 0
+
+    def fail_third_console_call(self, capability, drawing, script, timeout):
+        nonlocal calls
+        calls += 1
+        if calls == 3:
+            raise subprocess.CalledProcessError(1, [str(capability.console)], "", "INJECTED_DWG_FAILURE")
+        return original_run(self, capability, drawing, script, timeout)
+
+    monkeypatch.setattr(CoreConsoleExecutor, "run", fail_third_console_call)
+    settings = Settings(
+        data_dir=tmp_path / "data",
+        autocad_2016_console=Path("C:/Program Files/Autodesk/AutoCAD 2016/accoreconsole.exe"),
+        autocad_2016_plugin=root / "plugins/autocad2016/DstManager.AutoCAD.dll",
+        autocad_2020_console=Path("C:/Program Files/Autodesk/AutoCAD 2020/accoreconsole.exe"),
+        autocad_2020_plugin=root / "plugins/autocad2020/DstManager.AutoCAD.dll",
+        cad_timeout_seconds=180,
+        cad_max_parallel=1,
+    )
+    service = DstManagerService(settings)
+    workspace = service.open_workspace(tmp_path / dst_name)
+    commands = [
+        {"type": "update_sheet", "sheet_id": subset.sheets[0].acsm_id, "title": f"{subset.sheets[0].title}-失败注入"}
+        for subset in workspace.document.subsets[:2]
+    ]
+    job = service.execute_changes(workspace.id, workspace.revision_id, commands, version)
+    assert job["status"] == "QUEUED"
+
+    result = service.run_next_job()
+
+    assert result and result["status"] == "FAILED"
+    assert result["error_code"] == "CAD_PROCESS_FAILED"
+    after = {path.name: hashlib.sha256(path.read_bytes()).hexdigest() for path in formal_files}
+    assert after == before
+    assert {path.name for path in tmp_path.glob("*.dwg")} == {path.name for path in formal_files if path.suffix.lower() == ".dwg"}
+    assert not (tmp_path / ".dst-manager" / "revisions" / result["id"] / "manifest.json").exists()
+
+
+@pytest.mark.parametrize("version", ["2016", "2020"])
+def test_cad_success_then_dom_failure_keeps_formal_hashes(version: str, tmp_path: Path, monkeypatch):
+    root = Path(__file__).parents[2]
+    source_project = root / "sample/project1"
+    dst = tmp_path / "图纸集数据文件.dst"
+    drawing = tmp_path / "GP-0000 封面.dwg"
+    shutil.copy2(source_project / dst.name, dst)
+    shutil.copy2(source_project / drawing.name, drawing)
+    settings = Settings(
+        data_dir=tmp_path / "data",
+        autocad_2016_console=Path("C:/Program Files/Autodesk/AutoCAD 2016/accoreconsole.exe"),
+        autocad_2016_plugin=root / "plugins/autocad2016/DstManager.AutoCAD.dll",
+        autocad_2020_console=Path("C:/Program Files/Autodesk/AutoCAD 2020/accoreconsole.exe"),
+        autocad_2020_plugin=root / "plugins/autocad2020/DstManager.AutoCAD.dll",
+        cad_timeout_seconds=180,
+    )
+    service = DstManagerService(settings)
+    workspace = service.open_workspace(dst)
+    sheet = workspace.document.subsets[0].sheets[0]
+    job = service.execute_changes(
+        workspace.id,
+        workspace.revision_id,
+        [{"type": "update_sheet", "sheet_id": sheet.acsm_id, "title": "DOM 失败注入"}],
+        version,
+    )
+    assert job["status"] == "QUEUED"
+    before = {path.name: hashlib.sha256(path.read_bytes()).hexdigest() for path in (dst, drawing)}
+
+    def fail_dom(*_args, **_kwargs):
+        raise AcsmValidationError("CUSTOM_PROPERTY_VALUE_DUPLICATED: 注入")
+
+    monkeypatch.setattr(AcsmDocument, "apply_structural_commands", fail_dom)
+    result = service.run_next_job()
+
+    assert result and result["status"] == "FAILED"
+    after = {path.name: hashlib.sha256(path.read_bytes()).hexdigest() for path in (dst, drawing)}
+    assert after == before
+    assert not (tmp_path / ".dst-manager" / "revisions" / result["id"] / "manifest.json").exists()
