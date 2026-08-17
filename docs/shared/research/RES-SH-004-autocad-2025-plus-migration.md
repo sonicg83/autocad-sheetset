@@ -1,3 +1,12 @@
+---
+id: RES-SH-004
+title: AutoCAD 2025 及以上版本迁移分析
+status: accepted
+owners: [shared]
+created: 2026-07-15
+updated: 2026-08-17
+---
+
 # AutoCAD 2025 及以上版本迁移分析
 
 ## 1. 分析范围
@@ -10,6 +19,8 @@
 - `UtilityClass`
 
 分析基线为 2026-07-15 的仓库源码。本文件仅给出迁移方案、兼容边界、风险和验证建议，不代表已经实施代码迁移。
+
+与当前插件源码、构建和测试约定配套的资料见 [AutoCAD 插件开发与交接文档](../guides/GUIDE-SH-001-autocad-plugin-development.md)。
 
 ## 2. 结论摘要
 
