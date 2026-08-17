@@ -5,7 +5,7 @@ status: completed
 owners:
   - integration
 created: 2026-08-17
-updated: 2026-08-17
+updated: 2026-08-18
 related:
   - ARCH-INT-001
 ---
@@ -106,13 +106,13 @@ docs/
 - Consumes: `ARCH-INT-001` 中的目录、类型、状态和归属规则。
 - Produces: 后续迁移批次使用的模板、长期文档入口、执行资料入口和整合入口。
 
-- [ ] **Step 1: 创建不会指向未来文件的顶层索引**
+- [x] **Step 1: 创建不会指向未来文件的顶层索引**
 
 使用 `apply_patch` 创建索引。`docs/README.md` 首次只链接当前已存在的 `ARCH-INT-001`、现有根级文档和 `integration/README.md`；后续任务在移动文件的同一个提交中替换为项目入口。`.planning/README.md` 首次链接现有 `.planning/todos/README.md` 和 `roadmaps/integration.md`，不提前链接尚未创建的项目路线图。
 
 `docs/integration/README.md` 固定包含：范围说明、当前有效架构 `ARCH-INT-001`、RFC 索引、整合路线图，以及“产品私有功能不得放入本目录”的边界。`docs/integration/rfcs/README.md` 明确当前没有处于 `review` 状态的 RFC，新提案从 `RFC-INT-001` 开始编号。
 
-- [ ] **Step 2: 创建长期文档模板**
+- [x] **Step 2: 创建长期文档模板**
 
 模板 front matter 使用以下完整字段；模板正文只保留各类型要求的固定章节，示例值用尖括号表达并在复制模板时替换：
 
@@ -139,13 +139,13 @@ rfc.md: 提案 / 动机 / 影响范围 / 迁移路径 / 开放问题 / 评审结
 guide.md: 适用范围 / 前置条件 / 操作步骤 / 验证 / 故障处理
 ```
 
-- [ ] **Step 3: 创建计划模板和整合路线图**
+- [x] **Step 3: 创建计划模板和整合路线图**
 
 `.planning/_templates/roadmap.md` 使用 `proposed` 状态，正文为“目标阶段 / 交付结果 / 依赖 / 退出条件”。`.planning/_templates/plan.md` 使用 `proposed` 状态，正文为“目标 / 前置条件 / 任务 / 验证 / 风险 / 完成标准”。`.planning/_templates/memo.md` 不分配 ID，使用“日期 / 背景 / 事实 / 临时结论 / 待跟进事项”。
 
 `.planning/roadmaps/integration.md` 的正式内容为：当前阶段只完成文档治理和项目边界显式化；任何代码、领域模型或部署整合必须先有被接受的 `RFC-INT-*`；目前没有已批准的产品合并里程碑，也不设置虚构日期。
 
-- [ ] **Step 4: 验证新增入口没有断链**
+- [x] **Step 4: 验证新增入口没有断链**
 
 Run:
 
@@ -156,7 +156,7 @@ rtk git diff --check
 
 Expected: 第一条命令显示四个范围及 `ARCH-INT-001` 的入口；第二条命令无输出并以 0 退出。
 
-- [ ] **Step 5: 更新变更记录并提交**
+- [x] **Step 5: 更新变更记录并提交**
 
 在 `changelog.md` 当前日期章节追加“建立文档治理入口、模板和整合路线图；尚未移动业务文档”。然后执行：
 
@@ -188,7 +188,7 @@ Expected: 提交成功，未包含现有业务文档移动。
 - Consumes: Task 1 的索引和模板规则。
 - Produces: Legacy 产品入口、Vision、Roadmap 和三个稳定文档路径。
 
-- [ ] **Step 1: 创建目标目录并保留历史移动文件**
+- [x] **Step 1: 创建目标目录并保留历史移动文件**
 
 ```powershell
 rtk proxy powershell -NoProfile -Command "New-Item -ItemType Directory -Force 'docs/legacy-refactor/architecture','docs/legacy-refactor/research','docs/legacy-refactor/guides','docs/legacy-refactor/product','.planning/roadmaps' | Out-Null"
@@ -199,7 +199,7 @@ rtk git mv docs/DEVELOPMENT.md docs/legacy-refactor/guides/GUIDE-LR-001-legacy-d
 
 Expected: `git status --short` 显示三个 rename，不显示删除后重新创建。
 
-- [ ] **Step 2: 增加正式元数据并修复内部链接**
+- [x] **Step 2: 增加正式元数据并修复内部链接**
 
 使用“文件结构与职责”表中的 ID、状态和创建日期；三个文件的 `owners` 均为 `legacy-refactor`，`updated` 使用执行当天日期。`ARCH-LR-001` 额外增加：
 
@@ -209,7 +209,7 @@ document_kind: architecture-baseline
 
 Task 4 才移动共享插件文档。为保证 Task 2 的提交本身没有断链，Assessment 和 Legacy Guide 暂时把原 `PLUGIN_DEVELOPMENT.md` 链接改为 `../../PLUGIN_DEVELOPMENT.md`；从两个新目录解析后仍指向当前存在的 `docs/PLUGIN_DEVELOPMENT.md`。Task 4 在移动共享文档的同一提交中把这两个链接替换为 `../../shared/guides/GUIDE-SH-001-autocad-plugin-development.md`。
 
-- [ ] **Step 3: 创建 Legacy Vision、Roadmap 和索引**
+- [x] **Step 3: 创建 Legacy Vision、Roadmap 和索引**
 
 `vision.md` 明确：以现代 Python 重构现有生成工具编排层；Python 负责业务编排、Web/API、Excel、任务、存储和审计；必须在 AutoCAD 内运行的能力保留 C#；目标覆盖从输入到 DWG、DST 和伴随成果的生成工作流；不把 `pyautocad` 作为全系统基础。
 
@@ -217,7 +217,7 @@ Task 4 才移动共享插件文档。为保证 Task 2 的提交本身没有断�
 
 `docs/legacy-refactor/README.md` 链接 Vision、Roadmap、`ARCH-LR-001`、`RES-LR-001` 和 `GUIDE-LR-001`，并声明当前没有独立 PRD/Spec，后续需求按模板新增，不从基线批量复制。
 
-- [ ] **Step 4: 更新顶层索引并验证本批次**
+- [x] **Step 4: 更新顶层索引并验证本批次**
 
 把 `docs/README.md` 的 Legacy 入口改为 `legacy-refactor/README.md`，移除对三个旧根路径的链接。
 
@@ -231,7 +231,7 @@ rtk git diff --check
 
 Expected: ID 均可从索引定位；三个旧路径不存在；差异检查无输出。
 
-- [ ] **Step 5: 更新变更记录并提交**
+- [x] **Step 5: 更新变更记录并提交**
 
 ```powershell
 rtk git add -- docs/legacy-refactor .planning/roadmaps/legacy-refactor.md docs/README.md changelog.md
@@ -265,29 +265,29 @@ Expected: 提交只包含 Legacy 文档、相应索引、路线图和变更记�
 - Consumes: Task 1 的状态和计划模板。
 - Produces: DST Manager 的产品入口、架构基线、Roadmap、五份正式 Plan 和更新后的代理必读路径。
 
-- [ ] **Step 1: 移动架构基线和五份计划**
+- [x] **Step 1: 移动架构基线和五份计划**
 
 创建 `docs/dst-manager/architecture`、`docs/dst-manager/product` 和 `.planning/plans/dst-manager`，再使用 `git mv` 按 Files 清单逐一移动。把原 `.planning/todos/README.md` 移动为 `.planning/plans/dst-manager/README.md`，随后使用 `apply_patch` 修正其中五个新文件名链接。
 
-- [ ] **Step 2: 增加架构和计划元数据**
+- [x] **Step 2: 增加架构和计划元数据**
 
 `ARCH-DM-001` 使用表中元数据，`owners: [dst-manager]`，额外增加 `document_kind: architecture-baseline`。
 
 五份 Plan 使用表中 ID、状态和创建日期，`owners: [dst-manager]`，`related` 至少包含 `ARCH-DM-001`。`PLAN-DM-001` 和 `PLAN-DM-005` 已由当前版本和勾选项证明完成，标记 `completed`；其余三份保持 `proposed`。不要把未勾选任务机械改成已完成；在完成计划末尾增加“实际验证摘要”，只引用现有 `changelog.md` 已记录的 v0.2/v0.2.1 验证事实。
 
-- [ ] **Step 3: 创建 DST Manager Vision、Roadmap 和索引**
+- [x] **Step 3: 创建 DST Manager Vision、Roadmap 和索引**
 
 `vision.md` 明确：为单人单机真实工程提供可审计、可恢复的 DST/DWG 检查、编辑和发布工具；写入必须经过预览、基准修订、CAD Worker、验证和整批发布；MVP 只监听 `127.0.0.1`。
 
 `.planning/roadmaps/dst-manager.md` 以 v0.2.1、v0.3、v0.4、v1.0 为阶段，链接五份 Plan；v0.2 和 v0.2.1 标为已完成，未来阶段保持计划状态。`docs/dst-manager/README.md` 链接 Vision、Roadmap、`ARCH-DM-001` 和当前 Plan 索引。
 
-- [ ] **Step 4: 更新代理指令和顶层索引**
+- [x] **Step 4: 更新代理指令和顶层索引**
 
 把 `AGENTS.md` 的必读路径从 `docs/DST_MANAGER_MVP_DESIGN.md` 改为 `docs/dst-manager/architecture/ARCH-DM-001-dst-manager-mvp-baseline.md`。把文档归档约定更新为本设计的 `docs/<scope>/...`、`.planning/roadmaps/`、`.planning/plans/`、`.planning/todos/` 和 `.planning/memos/`，并明确 Todo 只保存尚未形成 Plan 的事项。
 
 同步更新 `docs/README.md` 和 `.planning/README.md`，使 DST Manager 分别指向新产品入口和 Roadmap/Plan 索引。
 
-- [ ] **Step 5: 验证 DST Manager 迁移**
+- [x] **Step 5: 验证 DST Manager 迁移**
 
 ```powershell
 rtk rg -n "ARCH-DM-001|PLAN-DM-00[1-5]" docs/dst-manager .planning/plans/dst-manager .planning/roadmaps/dst-manager.md AGENTS.md
@@ -297,7 +297,7 @@ rtk git diff --check
 
 Expected: 新 ID 均可定位；六个旧文件路径不存在；差异检查无输出。
 
-- [ ] **Step 6: 更新变更记录并提交**
+- [x] **Step 6: 更新变更记录并提交**
 
 ```powershell
 rtk git add -- docs/dst-manager .planning/plans/dst-manager .planning/roadmaps/dst-manager.md docs/README.md .planning/README.md AGENTS.md changelog.md
@@ -329,21 +329,21 @@ Expected: 提交只包含 DST Manager 文档、计划、索引、代理指令和
 - Consumes: Task 2 中继续指向 `docs/PLUGIN_DEVELOPMENT.md` 的两个有效过渡链接。
 - Produces: 公共技术资料入口、五个稳定文档 ID 和与样本研究共置的 XML/CSV 证据。
 
-- [ ] **Step 1: 使用 `git mv` 移动公共文档和证据**
+- [x] **Step 1: 使用 `git mv` 移动公共文档和证据**
 
 先创建 `docs/shared/guides`、`docs/shared/research` 和 `docs/shared/research/project1-dst-xml`，再严格按 Files 清单移动。XML 和 CSV 必须与 `RES-SH-001` 位于同一目录，不复制、不重新生成、不改变内容哈希。
 
-- [ ] **Step 2: 增加元数据并修复相对链接**
+- [x] **Step 2: 增加元数据并修复相对链接**
 
 五份 Markdown 使用表中 ID、状态和创建日期，`owners: [shared]`，`updated` 使用执行当天日期。`RES-SH-001` 正文中的输出清单文件名保持同目录相对引用。`RES-LR-001` 和 `GUIDE-LR-001` 指向 `GUIDE-SH-001` 的链接应在新位置解析成功。
 
 `RES-SH-004` 中原来同目录的 `PLUGIN_DEVELOPMENT.md` 链接改为 `../guides/GUIDE-SH-001-autocad-plugin-development.md`；`RES-LR-001` 的链接保持 `../../shared/guides/GUIDE-SH-001-autocad-plugin-development.md`。
 
-- [ ] **Step 3: 创建共享能力索引并更新顶层索引**
+- [x] **Step 3: 创建共享能力索引并更新顶层索引**
 
 `docs/shared/README.md` 按“DST/AcSm”“AutoCAD 插件”“版本兼容”三个主题链接五份文档，并明确这些是两条产品线共同使用的技术知识，不是第三个产品。`docs/README.md` 的共享入口只链接 `shared/README.md`，不再平铺五个文件。
 
-- [ ] **Step 4: 验证证据未变化和新链接可定位**
+- [x] **Step 4: 验证证据未变化和新链接可定位**
 
 使用迁移前已经核验的 SHA-256 基线检查移动后的工作树文件：
 
@@ -356,7 +356,7 @@ rtk git diff --check
 
 Expected: XML 哈希为 `36e4963ca954f67e7e01768b69aef75bc8af89478bc7d8816e9d2700dec4cd10`，CSV 哈希为 `0495a8e600175109b746aa0ccc151092675a5b1a3bea0da56a8dcf93a303fe86`；所有共享 ID 均可从索引定位；差异检查无输出。
 
-- [ ] **Step 5: 更新变更记录并提交**
+- [x] **Step 5: 更新变更记录并提交**
 
 ```powershell
 rtk git add -- docs/shared docs/legacy-refactor/research/RES-LR-001-python-refactor-assessment.md docs/legacy-refactor/guides/GUIDE-LR-001-legacy-development-handover.md docs/README.md changelog.md
@@ -382,7 +382,7 @@ Expected: 提交包含公共文档与证据 rename、两处跨文档链接、索
 - Consumes: Task 2、3、4 产生的所有稳定新路径和索引。
 - Produces: 无断链的仓库入口、已完成的迁移记录和可复核的最终状态。
 
-- [ ] **Step 1: 简化根 README 的文档导航**
+- [x] **Step 1: 简化根 README 的文档导航**
 
 保留现有启动和排障说明。把“本地保留资料”之后平铺的多个文档链接收敛为：
 
@@ -394,13 +394,13 @@ Expected: 提交包含公共文档与证据 rename、两处跨文档链接、索
 
 “主要入口”中的 DST Manager 设计链接改为 `ARCH-DM-001` 新路径。不要改动历史 `changelog.md` 条目中的旧路径。
 
-- [ ] **Step 2: 记录迁移完成状态**
+- [x] **Step 2: 记录迁移完成状态**
 
 在 `ARCH-INT-001` 的迁移阶段后增加“实施状态”小节，记录 Task 1 至 Task 4 对应提交哈希和完成日期，不改写原始设计决策。在本计划 front matter 中把 `status` 改为 `completed`，并在末尾记录实际执行的验证命令及结果摘要。
 
 在 `changelog.md` 当前日期章节追加最终迁移结果：两条产品线、共享能力和整合入口已经建立，旧平铺文档已通过 `git mv` 归档到新位置，样本证据哈希保持一致。
 
-- [ ] **Step 3: 检查根级文档不再平铺**
+- [x] **Step 3: 检查根级文档不再平铺**
 
 ```powershell
 rtk proxy powershell -NoProfile -Command "$allowed = @('README.md'); $unexpected = Get-ChildItem -LiteralPath 'docs' -File -Filter '*.md' | Where-Object { $_.Name -notin $allowed }; if ($unexpected) { $unexpected.FullName; throw 'docs 根目录仍有未归类 Markdown' }"
@@ -409,7 +409,7 @@ rtk rg --files docs .planning
 
 Expected: 第一条命令无输出；第二条命令显示所有 Markdown 均位于明确范围或模板目录。
 
-- [ ] **Step 4: 检查当前文档不存在旧路径引用**
+- [x] **Step 4: 检查当前文档不存在旧路径引用**
 
 历史变更记录和迁移映射允许保留旧路径，因此从检查中排除 `changelog.md` 与 `ARCH-INT-001`：
 
@@ -419,38 +419,51 @@ rtk rg -n "docs/(MODERN_PYTHON_REFACTOR_ARCHITECTURE|PYTHON_REFACTOR_ASSESSMENT|
 
 Expected: 无输出。若发现引用，必须改为对应新路径后重新执行。
 
-- [ ] **Step 5: 运行本地 Markdown 链接检查**
+- [x] **Step 5: 运行本地 Markdown 链接检查**
 
-在 PowerShell 中执行以下只读检查；它忽略外部 URL、邮件地址和页内锚点，只验证仓库内相对文件链接：
+在 PowerShell 中执行以下只读检查；它忽略外部 URL、邮件地址和页内锚点，只验证仓库内相对文件链接。审计从扫描结果构造“源文档仓库相对路径 + 原始链接目标”集合，并要求它与四个获准历史引用精确相等：
 
 ```powershell
 rtk proxy powershell -NoProfile -Command @'
 $root = (Resolve-Path '.').Path
 $files = Get-ChildItem -Path 'README.md','AGENTS.md','docs','.planning' -Recurse -File -Filter '*.md'
-$broken = [System.Collections.Generic.List[string]]::new()
+$expected = @(
+    "docs/legacy-refactor/research/RES-LR-001-python-refactor-assessment.md|../../../Functions.ps1"
+    "docs/legacy-refactor/research/RES-LR-001-python-refactor-assessment.md|../../../图纸集生成-市政用0.24.ps1"
+    "docs/shared/research/RES-SH-002-utilityclass-dst-xml-analysis.md|../../../Functions.ps1"
+    "docs/shared/research/RES-SH-002-utilityclass-dst-xml-analysis.md|../../../图纸集生成-市政用0.24.ps1"
+)
+$observed = [System.Collections.Generic.List[string]]::new()
 foreach ($file in $files) {
+    $source = $file.FullName.Substring($root.Length + 1).Replace('\','/')
     $text = Get-Content -Raw -Encoding UTF8 -LiteralPath $file.FullName
     foreach ($match in [regex]::Matches($text, '\[[^\]]+\]\(([^)]+)\)')) {
-        $target = $match.Groups[1].Value.Trim('<','>')
-        if ($target -match '^(https?://|mailto:|#)') { continue }
-        $pathPart = ($target -split '#', 2)[0]
+        $target = $match.Groups[1].Value
+        $targetForResolution = $target.Trim('<','>')
+        if ($targetForResolution -match '^(https?://|mailto:|#)') { continue }
+        $pathPart = ($targetForResolution -split '#', 2)[0]
         if ([string]::IsNullOrWhiteSpace($pathPart)) { continue }
         $resolved = Join-Path $file.DirectoryName ([uri]::UnescapeDataString($pathPart))
         if (-not (Test-Path -LiteralPath $resolved)) {
-            $broken.Add("$($file.FullName): $target")
+            $observed.Add("$source|$target")
         }
     }
 }
-if ($broken.Count -gt 0) {
-    $broken
-    throw "发现 $($broken.Count) 个失效本地 Markdown 链接"
+$observedUnique = @($observed | Sort-Object -Unique)
+$missing = @($expected | Where-Object { $_ -cnotin $observedUnique })
+$unexpected = @($observedUnique | Where-Object { $_ -cnotin $expected })
+if ($observed.Count -ne 4 -or $observedUnique.Count -ne 4 -or $missing.Count -gt 0 -or $unexpected.Count -gt 0) {
+    $missing | ForEach-Object { "缺少获准引用: $_" }
+    $unexpected | ForEach-Object { "其他失效链接: $_" }
+    throw "失效链接集合不等于获准四元组；实际出现 $($observed.Count) 次、$($observedUnique.Count) 个唯一组合"
 }
+"精确链接审计通过：4 处获准引用，涉及 2 个私有目标；其他失效本地链接 0 个。"
 '@
 ```
 
-Expected: 无失效链接并以 0 退出。
+Expected: 输出“4 处获准引用，涉及 2 个私有目标；其他失效本地链接 0 个”并以 0 退出；四个组合必须全部实际出现且不能重复，也不能出现任何其他失效本地链接。
 
-- [ ] **Step 6: 运行最终差异和文档内容检查**
+- [x] **Step 6: 运行最终差异和文档内容检查**
 
 ```powershell
 rtk rg -n "T[B]D|T[O]DO|PLACE[H]OLDER|待[补]" docs .planning -g "*.md" -g "!docs/_templates/**" -g "!.planning/_templates/**"
@@ -460,7 +473,7 @@ rtk git status --short
 
 Expected: 第一条命令仅允许模板示例中明确要求复制时替换的尖括号字段，不允许正式文档出现占位符；第二条命令无输出；第三条命令只显示本任务计划内文件。
 
-- [ ] **Step 7: 提交最终收口**
+- [x] **Step 7: 提交最终收口**
 
 ```powershell
 rtk git add -- README.md docs/README.md .planning/README.md docs/integration/architecture/ARCH-INT-001-documentation-organization.md .planning/plans/integration/PLAN-INT-001-documentation-migration.md changelog.md
@@ -477,16 +490,16 @@ Expected: 提交成功；最终 `git status --short` 无输出。
 
 执行完全部任务后，逐项确认：
 
-- [ ] `docs/README.md` 和 `.planning/README.md` 均能在三次点击内到达所有当前有效文档。
-- [ ] Legacy Python 重构、DST Manager、共享能力和跨项目整合都有独立入口。
-- [ ] 两份大型架构基线仅增加元数据和位置变化，正文决策未被重新解释。
-- [ ] 五份 DST Manager 阶段文档均成为正式 Plan，完成状态与现有证据一致。
-- [ ] Project1 XML/CSV 研究证据与正文共置，迁移前后 SHA-256 一致。
-- [ ] `AGENTS.md` 的必读路径和归档约定与新结构一致。
-- [ ] 当前文档不存在旧路径引用或失效本地链接。
-- [ ] `docs/` 根目录不再平铺业务 Markdown。
-- [ ] `legacy/`、`sample/`、源码、依赖锁和数据库均未修改。
-- [ ] 每个迁移批次都有独立简体中文提交，最终工作区干净。
+- [x] `docs/README.md` 和 `.planning/README.md` 均能在三次点击内到达所有当前有效文档与模板。
+- [x] Legacy Python 重构、DST Manager、共享能力和跨项目整合都有独立入口。
+- [x] 两份大型架构基线仅增加元数据和位置变化，正文决策未被重新解释。
+- [x] 五份 DST Manager 阶段文档均成为正式 Plan，完成状态与现有证据一致。
+- [x] Project1 XML/CSV 研究证据与正文共置，迁移前后 SHA-256 一致。
+- [x] `AGENTS.md` 的必读路径和归档约定与新结构一致。
+- [x] 当前文档不存在旧路径引用；除 4 处获准引用 2 个私有目标外，其他本地 Markdown 链接为 0 个失效。
+- [x] `docs/` 根目录不再平铺业务 Markdown。
+- [x] `legacy/`、`sample/`、源码、依赖锁和数据库均未修改。
+- [x] 每个迁移批次都有独立简体中文提交，最终工作区干净。
 
 ## 风险与控制
 
@@ -498,10 +511,10 @@ Expected: 提交成功；最终 `git status --short` 无输出。
 
 ## 实际验证摘要
 
-本计划于 `2026-08-17` 完成。最终执行并通过以下检查：
+本计划于 `2026-08-17` 完成迁移，并于 `2026-08-18` 完成终审复核。最终执行并通过以下检查：
 
 - `rtk proxy powershell -NoProfile -Command "$allowed = @('README.md'); ..."`：`docs/` 根目录仅保留 `README.md`。
 - `rtk rg --files docs .planning`：全部 Markdown 位于明确的产品线、共享、整合、执行资料或模板范围。
 - `rtk rg -n "docs/(MODERN_PYTHON_REFACTOR_ARCHITECTURE|PYTHON_REFACTOR_ASSESSMENT|DEVELOPMENT|DST_MANAGER_MVP_DESIGN|PROJECT1_DST_XML_ANALYSIS|UTILITYCLASS_DST_XML_ANALYSIS|PLUGIN_DEVELOPMENT|TRANSFORM_MATRIX_ANALYSIS|AUTOCAD_2025_PLUS_MIGRATION_ANALYSIS)\\.md|\\.planning/todos/(01-v0\\.2|02-v0\\.3|03-v0\\.4|04-v1\\.0|05-v0\\.2\\.1)" ...`：排除迁移映射和历史记录后无旧路径引用。
-- 本地 Markdown 相对链接检查：排除公开工作区缺少、且保留原根路径语义的两个 `legacy/` 私有研究历史脚本后，无其他失效链接。
+- 本地 Markdown 相对链接检查：扫描结果精确包含 4 处获准引用，分别来自 2 份研究文档并指向 2 个私有目标；其他本地 Markdown 链接为 0 个失效。
 - `rtk rg -n "T[B]D|T[O]DO|PLACE[H]OLDER|待[补]" docs .planning -g "*.md" -g "!docs/_templates/**" -g "!.planning/_templates/**"`、`rtk git diff --check`：无正式文档占位符和空白错误。
