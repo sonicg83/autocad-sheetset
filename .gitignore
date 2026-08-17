@@ -4,6 +4,7 @@
 .env.*
 !.env.example
 .agents/
+.worktrees/
 .ruff_cache/
 .pytest_cache/
 __pycache__/
