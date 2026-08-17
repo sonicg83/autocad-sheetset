@@ -6,9 +6,7 @@
 
 - [双项目文档组织与治理设计（ARCH-INT-001）](integration/architecture/ARCH-INT-001-documentation-organization.md)
 - [DST Manager MVP 设计](DST_MANAGER_MVP_DESIGN.md)
-- [现代 Python 重构架构](MODERN_PYTHON_REFACTOR_ARCHITECTURE.md)
-- [Python 重构可行性评估](PYTHON_REFACTOR_ASSESSMENT.md)
-- [开发与交接指南](DEVELOPMENT.md)
+- [Legacy Python 重构文档入口](legacy-refactor/README.md)
 - [插件开发指南](PLUGIN_DEVELOPMENT.md)
 - [Project1 DST/XML 分析](PROJECT1_DST_XML_ANALYSIS.md)
 - [UtilityClass DST/XML 分析](UTILITYCLASS_DST_XML_ANALYSIS.md)

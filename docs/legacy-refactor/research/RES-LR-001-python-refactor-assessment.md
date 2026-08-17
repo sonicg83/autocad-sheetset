@@ -1,3 +1,16 @@
+---
+id: RES-LR-001
+title: Python 与 pyautocad 重构可行性评估
+status: accepted
+owners:
+  - legacy-refactor
+created: 2026-07-15
+updated: 2026-08-17
+related:
+  - ARCH-LR-001
+  - GUIDE-LR-001
+---
+
 # Python 与 pyautocad 重构可行性评估
 
 > 分析日期：2026-07-15  
@@ -131,7 +144,7 @@ ActiveX 提供 `AttachExternalReference`，可以从模型空间、图纸空间�
 
 `AutoCad Utility.dll` 的源码现已确认：`Ainsert` 排除模型空间，在所有图纸布局的 `(0, 0, 0)` 插入同一个外部 DWG；外参名取文件名，不显式设置比例、旋转、图层，也不执行绑定、转块或字段处理。主脚本会在调用前把当前图层设为 `0`。
 
-因此可以用 ActiveX `AttachExternalReference` 加“逐布局追加块参照”重现其目标语义，但仍需用多布局 DWG 对比现有实现，尤其验证同名外参定义、布局块集合和保存后的引用路径。源码级说明见 [AutoCAD 插件开发与交接文档](PLUGIN_DEVELOPMENT.md)。
+因此可以用 ActiveX `AttachExternalReference` 加“逐布局追加块参照”重现其目标语义，但仍需用多布局 DWG 对比现有实现，尤其验证同名外参定义、布局块集合和保存后的引用路径。源码级说明见 [AutoCAD 插件开发与交接文档](../../PLUGIN_DEVELOPMENT.md)。
 
 ## 6. DST/Sheet Set 是独立的重构边界
 
