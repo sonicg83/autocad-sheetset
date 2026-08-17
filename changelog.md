@@ -2,6 +2,7 @@
 
 ## 2026-08-17（双项目文档治理设计）
 
+- 修复 Legacy 文档迁移后的根入口和历史脚本相对链接。
 - 归档 Legacy Python 重构文档，建立产品愿景、路线图、架构基线、评估和开发交接入口。
 - 建立文档治理入口、模板和整合路线图；尚未移动业务文档。
 - 新增 `docs/integration/architecture/ARCH-INT-001-documentation-organization.md`，明确 Legacy Python 重构、DST Manager、公共能力和跨项目整合四类文档边界。

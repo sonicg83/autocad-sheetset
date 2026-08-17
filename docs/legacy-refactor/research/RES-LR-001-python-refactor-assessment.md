@@ -48,8 +48,8 @@ related:
 
 现有关键调用位置：
 
-- Core Console 调度：[`Functions.ps1`](../Functions.ps1) 中的 `AcadScript`。
-- 正式批处理入口：[`图纸集生成-市政用0.24.ps1`](../图纸集生成-市政用0.24.ps1) 中 `$WPFConfirm.add_Click` 处理器。
+- Core Console 调度：[`Functions.ps1`](../../../Functions.ps1) 中的 `AcadScript`。
+- 正式批处理入口：[`图纸集生成-市政用0.24.ps1`](../../../图纸集生成-市政用0.24.ps1) 中 `$WPFConfirm.add_Click` 处理器。
 - 布局句柄命令：生成的 AutoCAD 脚本中的 `GetLayoutHandles`。
 - DST 输出：`[UtilityClass.DstViewer]::XmlToDst($xmldata, $dstfile)`。
 

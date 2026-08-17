@@ -92,7 +92,7 @@ SQLite 使用 SQLAlchemy 运行时模型和 Alembic 迁移：`uv run alembic upg
 
 公开仓库不包含 `legacy/` 旧工具和 `sample/` 工程样本。这两个目录只保留在本地工作区；缺少样本时，黄金样本和真实 AutoCAD 系统测试会自动跳过。
 
-完整的架构、输入格式、生成流程、扩展方法和已知风险见 [开发与交接文档](docs/DEVELOPMENT.md)。
+完整的架构、输入格式、生成流程、扩展方法和已知风险见 [开发与交接文档](docs/legacy-refactor/guides/GUIDE-LR-001-legacy-development-handover.md)。
 
 `plugin/` 下 4 个 C# 项目的源码结构、命令契约、构建部署、测试矩阵和已知问题见 [AutoCAD 插件开发与交接文档](docs/PLUGIN_DEVELOPMENT.md)。
 
@@ -102,7 +102,7 @@ AutoCAD 2025/2026 的 .NET 8 迁移、AutoCAD 2027 的 .NET 10 边界、多版�
 
 `Transform` 插件的四参数矩阵推导、默认参数往返误差、WCS/UCS 与 Z 坐标边界、Autodesk 官方依据和整改建议见 [Transform 插件矩阵运算准确性分析](docs/TRANSFORM_MATRIX_ANALYSIS.md)。
 
-关于是否使用 Python/pyautocad 重构、预期收益、技术边界和推荐迁移路线，见 [Python 与 pyautocad 重构可行性评估](docs/PYTHON_REFACTOR_ASSESSMENT.md)。
+关于是否使用 Python/pyautocad 重构、预期收益、技术边界和推荐迁移路线，见 [Python 与 pyautocad 重构可行性评估](docs/legacy-refactor/research/RES-LR-001-python-refactor-assessment.md)。
 
 ## 主要入口
 
