@@ -15,8 +15,8 @@ updated: 2026-08-17
 
 分析依据包括：
 
-- [`plugin/UtilityClass/Class1.cs`](../../../plugin/UtilityClass/Class1.cs) 中的实现源码；
-- [`plugin/UtilityClass/UtilityClass.csproj`](../../../plugin/UtilityClass/UtilityClass.csproj) 中的构建目标；
+- 历史本地路径 `plugin/UtilityClass/Class1.cs` 中的实现源码；
+- 历史本地路径 `plugin/UtilityClass/UtilityClass.csproj` 中的构建目标；
 - [`Functions.ps1`](../../../Functions.ps1) 中的 DST 读取和 XML 查询逻辑；
 - [`图纸集生成-市政用0.24.ps1`](../../../图纸集生成-市政用0.24.ps1) 中的 XML 模板组装和 DST 输出逻辑；
 - 当前仓库内实际分发 DLL 的反射和查表一致性验证。

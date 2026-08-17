@@ -24,11 +24,11 @@ updated: 2026-08-17
 
 分析对象主要包括：
 
-- [`Transform/Transform/myCommands.cs`](../../../plugin/Transform/Transform/myCommands.cs)；
-- [`Transform/Transform/myPlugin.cs`](../../../plugin/Transform/Transform/myPlugin.cs)；
-- [`Transform/Transform/bin/Debug/config.ini`](../../../plugin/Transform/Transform/bin/Debug/config.ini)；
-- [`Transform/Transform/obj/Debug/config.ini`](../../../plugin/Transform/Transform/obj/Debug/config.ini)；
-- [`Transform/change.txt`](../../../plugin/Transform/change.txt)。
+- 历史本地路径 `plugin/Transform/Transform/myCommands.cs`；
+- 历史本地路径 `plugin/Transform/Transform/myPlugin.cs`；
+- 历史本地路径 `plugin/Transform/Transform/bin/Debug/config.ini`；
+- 历史本地路径 `plugin/Transform/Transform/obj/Debug/config.ini`；
+- 历史本地路径 `plugin/Transform/change.txt`。
 
 本文只分析源码和已有配置。仓库没有控制点成果表、源/目标坐标系定义、参数解算报告或黄金 DWG，因此无法仅凭源码证明参数具有测绘精度。
 

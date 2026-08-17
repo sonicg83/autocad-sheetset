@@ -1,7 +1,7 @@
 ---
 id: PLAN-INT-001
 title: 双项目文档迁移实施计划
-status: proposed
+status: completed
 owners:
   - integration
 created: 2026-08-17
@@ -495,3 +495,13 @@ Expected: 提交成功；最终 `git status --short` 无输出。
 - 历史变更记录包含旧路径：审计命令显式排除 `changelog.md`，避免错误改写历史事实。
 - XML/CSV 证据可能被换行转换：使用 `git mv` 且不经过文本编辑，移动前后比较 SHA-256。
 - 空目录不会被 Git 保存：只在目录拥有首个实际文件时创建，不提交 `.gitkeep`。
+
+## 实际验证摘要
+
+本计划于 `2026-08-17` 完成。最终执行并通过以下检查：
+
+- `rtk proxy powershell -NoProfile -Command "$allowed = @('README.md'); ..."`：`docs/` 根目录仅保留 `README.md`。
+- `rtk rg --files docs .planning`：全部 Markdown 位于明确的产品线、共享、整合、执行资料或模板范围。
+- `rtk rg -n "docs/(MODERN_PYTHON_REFACTOR_ARCHITECTURE|PYTHON_REFACTOR_ASSESSMENT|DEVELOPMENT|DST_MANAGER_MVP_DESIGN|PROJECT1_DST_XML_ANALYSIS|UTILITYCLASS_DST_XML_ANALYSIS|PLUGIN_DEVELOPMENT|TRANSFORM_MATRIX_ANALYSIS|AUTOCAD_2025_PLUS_MIGRATION_ANALYSIS)\\.md|\\.planning/todos/(01-v0\\.2|02-v0\\.3|03-v0\\.4|04-v1\\.0|05-v0\\.2\\.1)" ...`：排除迁移映射和历史记录后无旧路径引用。
+- 本地 Markdown 相对链接检查：排除公开工作区缺少、且保留原根路径语义的两个 `legacy/` 私有研究历史脚本后，无其他失效链接。
+- `rtk rg -n "T[B]D|T[O]DO|PLACE[H]OLDER|待[补]" docs .planning -g "*.md" -g "!docs/_templates/**" -g "!.planning/_templates/**"`、`rtk git diff --check`：无正式文档占位符和空白错误。
