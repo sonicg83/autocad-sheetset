@@ -1,3 +1,15 @@
+---
+id: PLAN-DM-002
+title: v0.3 日常编辑器
+status: proposed
+owners:
+  - dst-manager
+created: 2026-08-11
+updated: 2026-08-17
+related:
+  - ARCH-DM-001
+---
+
 # 阶段 2：v0.3 日常编辑器
 
 状态：待实施  

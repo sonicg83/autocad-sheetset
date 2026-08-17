@@ -110,4 +110,4 @@ AutoCAD 2025/2026 的 .NET 8 迁移、AutoCAD 2027 的 .NET 10 边界、多版�
 - `web/`：Vue 3 本地操作界面。
 - `plugins/src/DstManager.AutoCAD/`：AutoCAD 2016/2020 Worker 插件源码。
 - `scripts/build_plugins.ps1`：双版本插件构建脚本。
-- `docs/DST_MANAGER_MVP_DESIGN.md`：MVP 设计与验收基线。
+- `docs/dst-manager/architecture/ARCH-DM-001-dst-manager-mvp-baseline.md`：MVP 架构与验收基线。

@@ -1,3 +1,15 @@
+---
+id: PLAN-DM-001
+title: v0.2 稳定化与多 DWG 并行
+status: completed
+owners:
+  - dst-manager
+created: 2026-08-11
+updated: 2026-08-17
+related:
+  - ARCH-DM-001
+---
+
 # 阶段 1：v0.2 稳定化与多 DWG 并行
 
 状态：已完成（2026-08-12）
@@ -131,3 +143,7 @@
 - Core Console 并发可能受内存、插件全局资源、临时文件或许可环境影响；并发数必须可降为 1。
 - 不允许多个执行单元共享 SCR、Handle 输出或 DWG 暂存路径。
 - 发现某 AutoCAD 版本并发不稳定时，可按版本把最大并发强制为 1，不影响其余稳定化功能交付。
+
+## 实际验证摘要
+
+根据根目录 `changelog.md` 的 2026-08-12（DST Manager v0.2）记录，SQLite 初始化与升级已统一到 Alembic，任务领取、修订恢复、多 DWG 有界并行及任务 API/Web 观测能力均已落地；对应测试覆盖并发、失败停止、领取、恢复冲突与 Playwright 交互。

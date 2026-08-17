@@ -1,3 +1,15 @@
+---
+id: PLAN-DM-003
+title: v0.4 单人工作流
+status: proposed
+owners:
+  - dst-manager
+created: 2026-08-11
+updated: 2026-08-17
+related:
+  - ARCH-DM-001
+---
+
 # 阶段 3：v0.4 单人工作流
 
 状态：待实施  

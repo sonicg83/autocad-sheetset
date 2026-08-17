@@ -1,3 +1,15 @@
+---
+id: PLAN-DM-005
+title: v0.2.1 运行时、日志与 AcSm 兼容性修复
+status: completed
+owners:
+  - dst-manager
+created: 2026-08-12
+updated: 2026-08-17
+related:
+  - ARCH-DM-001
+---
+
 # 紧急修复：v0.2.1 运行时、日志与 AcSm 兼容性
 
 状态：已完成（2026-08-12）  
@@ -245,3 +257,7 @@ CONTROLLED_PROPERTY_INVALID: Value
 - 不在本修复中实现完整 Windows 安装器或系统服务。
 - 不处理历史测试数据库的数据迁移；允许明确删除后重建。
 - 不改变整批发布器的单线程、永久 before 快照和失败回滚边界。
+
+## 实际验证摘要
+
+根据根目录 `changelog.md` 的 2026-08-12（DST Manager v0.2.1）记录，已完成 AcSm 空属性与 `Flags` 作用域处理、预览前移、单实例启动与停止、UTF-8 日志协议、Worker 输出收敛和数据库 schema 闸门，并补充双版本 AutoCAD 热修复与失败不发布回归测试。

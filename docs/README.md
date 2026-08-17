@@ -5,7 +5,7 @@
 ## 当前文档
 
 - [双项目文档组织与治理设计（ARCH-INT-001）](integration/architecture/ARCH-INT-001-documentation-organization.md)
-- [DST Manager MVP 设计](DST_MANAGER_MVP_DESIGN.md)
+- [DST Manager 文档入口](dst-manager/README.md)
 - [Legacy Python 重构文档入口](legacy-refactor/README.md)
 - [插件开发指南](PLUGIN_DEVELOPMENT.md)
 - [Project1 DST/XML 分析](PROJECT1_DST_XML_ANALYSIS.md)
