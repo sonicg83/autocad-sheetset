@@ -1,6 +1,6 @@
-# DST Manager 协作规范
+# 双项目仓库协作规范
 
-本文件适用于仓库根目录及全部子目录。后续代理在修改代码前，应先阅读 `README.md`、`docs/dst-manager/architecture/ARCH-DM-001-dst-manager-mvp-baseline.md` 以及与任务直接相关的源码和测试。
+本文件适用于仓库根目录及全部子目录。后续代理在修改前，应先阅读 `README.md`、`docs/README.md`、相关 scope 的 `README.md`，以及与任务直接相关的文档、源码和测试。涉及 DST Manager 架构或发布安全时，还必须阅读 `docs/dst-manager/architecture/ARCH-DM-001-dst-manager-mvp-baseline.md`。
 
 ## 沟通与文本
 
@@ -11,11 +11,18 @@
 
 ## 文档归档约定
 
+- 文档治理的权威设计是 `docs/integration/architecture/ARCH-INT-001-documentation-organization.md`；本节只保留日常执行约束，出现歧义时以权威设计为准。
 - 可长期复用的知识、技术分析、架构说明、开发指南和调研结论按范围保存到 `docs/<scope>/...`。
+- scope 只使用 `legacy-refactor`、`dst-manager`、`shared` 和 `integration`：前两者分别归属两条产品线；`shared` 只接收已被两边采用的稳定公共能力；尚在讨论的跨项目契约、提案和合并议题进入 `integration`，不得因“未来可能复用”提前归入 `shared`。
+- 长期文档按主要用途归档：Vision 与 PRD 放入 `<project>/product/`，Spec 放入 `<project>/specs/`，Architecture、ADR、Guide 和 Research 放入对应 scope 的同名目录；RFC 只放入 `docs/integration/rfcs/`，稳定 Reference 放入 `docs/shared/reference/`。
 - 已立项的实施计划、阶段计划和修复计划保存到 `.planning/plans/`；路线图保存到 `.planning/roadmaps/`。
 - 尚未形成正式 Plan 的事项仅保存到 `.planning/todos/`；不要将已归档 Plan 继续放入 Todo。
 - 备忘、对话记录、阶段沟通摘要和临时决策记录等记录类文档保存到 `.planning/memos/`。
-- 新建文档前按其主要用途与范围分类；不要将待办或备忘混入 `docs/`，也不要将长期知识文档放入 `.planning/`。
+- `.planning/plans/`、`.planning/todos/` 和 `.planning/memos/` 下继续按四个 scope 分目录；Roadmap 使用 scope 对应的单文件入口。
+- 新建文档前先判断生命周期、scope 和文档类型，并搜索同主题权威文档；同一内容只保留一个权威位置，其他位置使用链接，不复制正文。不要将待办或备忘混入 `docs/`，也不要将长期知识文档放入 `.planning/`。
+- PRD、Spec、Architecture、ADR、RFC、Roadmap 和 Plan 必须使用 YAML 元数据；正式文档使用永久 ID（类型 + `LR`/`DM`/`SH`/`INT` + 三位序号），编号不得重用。`related` 使用文档 ID，正文仍提供可点击链接。
+- 长期文档状态使用 `draft`、`review`、`accepted`、`superseded` 或 `archived`；计划类文档使用 `proposed`、`active`、`completed`、`cancelled` 或 `blocked`。ADR 结论变化时新增 ADR，不静默改写旧决策；Plan 标记 `completed` 前记录实际验证，标记 `blocked` 时记录原因和恢复条件。
+- 各级 `README.md` 只承担导航和当前状态摘要，不复制正文；新增、移动、作废或归档正式文档时同步维护相关索引和链接。根 `docs/` 不平铺业务文档，仓库根 `README.md` 不累积完整架构、调研或交接内容。
 
 ## 开发环境
 
