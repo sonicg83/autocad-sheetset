@@ -12,7 +12,9 @@ __pycache__/
 .dst-manager-data/
 /legacy/
 /lagacy/
-/sample/
+/sample/*
+!/sample/golden-template/
+!/sample/golden-template/**
 web/node_modules/
 web/dist/
 web/test-results/

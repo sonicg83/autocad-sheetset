@@ -1,0 +1,72 @@
+{
+  "schema_version": "golden-sample-template.v1",
+  "sample_id": "GS-TEMPLATE-001",
+  "status": "template",
+  "accepted": false,
+  "description": "Legacy 图纸集生成工作流的黄金样本模板，等待真实项目输入和验收成果填充。",
+  "source_workflow": "legacy",
+  "comparison_workflows": [
+    "legacy",
+    "dst-manager"
+  ],
+  "cad_versions": [
+    "2016",
+    "2020"
+  ],
+  "binary_placeholder_policy": "当前 xlsx、dwg 和 dst 文件均为空文件，仅用于固定目录和文件角色。",
+  "files": [
+    {
+      "path": "input/drawing-index.xlsx",
+      "role": "legacy_input_drawing_index",
+      "required": true,
+      "placeholder": true,
+      "size": 0,
+      "sha256": null
+    },
+    {
+      "path": "input/material-schedule.xlsx",
+      "role": "legacy_input_material_schedule",
+      "required": false,
+      "placeholder": true,
+      "size": 0,
+      "sha256": null
+    },
+    {
+      "path": "input/source-layout.dwg",
+      "role": "legacy_input_source_layout",
+      "required": true,
+      "placeholder": true,
+      "size": 0,
+      "sha256": null
+    },
+    {
+      "path": "baseline/legacy/sheetset.dst",
+      "role": "legacy_baseline_dst",
+      "required": true,
+      "placeholder": true,
+      "size": 0,
+      "sha256": null
+    },
+    {
+      "path": "baseline/legacy/sheet-001.dwg",
+      "role": "legacy_baseline_dwg",
+      "required": true,
+      "placeholder": true,
+      "size": 0,
+      "sha256": null
+    }
+  ],
+  "expected_counts": {
+    "sheet_count": null,
+    "subset_count": null,
+    "referenced_dwg_count": null,
+    "unreferenced_dwg_count": null
+  },
+  "acceptance_requirements": [
+    "Legacy 在记录的环境和 AutoCAD 版本上可以成功生成完整成果。",
+    "DST 可以解码为 AcSmDatabase，且结构、引用和自定义属性通过校验。",
+    "目标 AutoCAD 版本可以打开 DST 并正确解析所有布局引用。",
+    "Legacy 基线与 DST Manager 候选输出通过语义比较；不要求 DWG/DST 二进制逐字节相同。",
+    "人工确认记录、输入摘要、输出摘要和失败恢复证据齐全。"
+  ]
+}

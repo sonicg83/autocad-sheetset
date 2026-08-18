@@ -1,0 +1,12 @@
+{
+  "status": "template",
+  "note": "请从已确认的 Legacy 基线成果生成并人工复核本文件。",
+  "sheet_count": null,
+  "subset_count": null,
+  "layout_reference_count": null,
+  "referenced_dwg_count": null,
+  "unreferenced_dwg_count": null,
+  "dwg_layouts": [],
+  "accepted_warnings": [],
+  "comparison_notes": []
+}
