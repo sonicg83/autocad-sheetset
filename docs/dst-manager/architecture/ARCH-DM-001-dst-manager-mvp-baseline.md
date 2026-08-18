@@ -1,3 +1,17 @@
+---
+id: ARCH-DM-001
+title: DST Manager MVP 架构基线
+status: accepted
+owners:
+  - dst-manager
+created: 2026-08-10
+updated: 2026-08-17
+related:
+  - PLAN-DM-001
+  - PLAN-DM-005
+document_kind: architecture-baseline
+---
+
 # DST Manager MVP 技术验证设计
 
 > 状态：设计定稿，DM-ADR-001 至 DM-ADR-010 已关闭  

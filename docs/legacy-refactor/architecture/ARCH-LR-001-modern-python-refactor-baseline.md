@@ -1,3 +1,17 @@
+---
+id: ARCH-LR-001
+title: 现代 Python 重构架构基线
+status: accepted
+owners:
+  - legacy-refactor
+created: 2026-08-10
+updated: 2026-08-17
+related:
+  - RES-LR-001
+  - GUIDE-LR-001
+document_kind: architecture-baseline
+---
+
 # 现代化 Python 重构架构设计（决策基线）
 
 > 状态：最终定稿；ADR-001 至 ADR-020 已关闭

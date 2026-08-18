@@ -1,3 +1,12 @@
+---
+id: RES-SH-001
+title: Project1 DST/XML 结构分析
+status: accepted
+owners: [shared]
+created: 2026-08-11
+updated: 2026-08-17
+---
+
 # project1 DST/XML 结构分析
 
 ## 1. 目的与产物
@@ -10,7 +19,7 @@
 | --- | --- | --- |
 | `project1_sheetset.xml` | DST 直接解码所得的完整 AcSm XML | UTF-8，845,628 字节 |
 | `project1_sheet_manifest.csv` | 每张图纸、所属子集、DWG、布局和自定义属性清单 | UTF-8 with BOM，298 行 |
-| `PROJECT1_DST_XML_ANALYSIS.md` | 本分析文档 | UTF-8 |
+| `RES-SH-001-project1-dst-xml-analysis.md` | 本分析文档 | UTF-8 |
 
 XML 是解码后的原始字节结果，不经过序列化、格式化或结构编辑，因此与源 DST 的一一字节置换关系仍成立。CSV 仅是 XML 中受控业务字段的投影，不能用于重建 DST。
 

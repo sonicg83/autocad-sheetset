@@ -1,5 +1,30 @@
 # 变更记录
 
+## 2026-08-18（文档迁移终审修复）
+
+- 补齐长期文档与执行资料的模板、三条路线图和归档导航，确保当前有效文档与模板可在三次点击内到达。
+- 闭合双项目文档迁移计划的完成态记录，并将本地链接审计收紧为四个获准历史引用的精确组合。
+- 完善 Legacy Python 重构与 DST Manager 产品入口的定位、状态、规范和指南说明，移除 README 的孤立正式编号。
+
+## 2026-08-17（DST Manager 文档与计划迁移）
+
+- 归档 DST Manager 架构基线、产品愿景、路线图与 v0.2 至 v1.0 正式 Plan，并为架构与计划补充统一 ID、状态和关联元数据。
+- 更新文档、执行资料、根入口和代理必读路径，DST Manager 现通过产品入口、路线图和 Plan 索引导航。
+
+- 归档两条产品线共用的 DST/AcSm、AutoCAD 插件和版本兼容技术资料；为五份资料补充稳定 ID、统一元数据和共享入口，并将 Project1 XML/CSV 研究证据与对应分析共置。
+- 完成双项目文档迁移与链接审计：两条产品线、共享能力和跨项目整合入口均已建立；旧平铺文档已通过 `git mv` 归档至新位置，Project1 XML/CSV 样本证据 SHA-256 保持一致。
+
+## 2026-08-17（双项目文档治理设计）
+
+- 修复 Legacy 文档迁移后的根入口和历史脚本相对链接。
+- 归档 Legacy Python 重构文档，建立产品愿景、路线图、架构基线、评估和开发交接入口。
+- 建立文档治理入口、模板和整合路线图；尚未移动业务文档。
+- 新增 `docs/integration/architecture/ARCH-INT-001-documentation-organization.md`，明确 Legacy Python 重构、DST Manager、公共能力和跨项目整合四类文档边界。
+- 统一 Vision、PRD、Spec、Architecture、ADR、RFC、Roadmap、Plan、Todo、Memo、Guide、Reference 和 Research 的职责、状态、编号、索引与流转规则。
+- 制定现有文档的渐进迁移映射和三阶段整理方案；本次仅落地设计，不移动或拆分现有文档。
+- 新增 `.planning/plans/integration/PLAN-INT-001-documentation-migration.md`，把目录骨架、Legacy/DST Manager/共享资料迁移、索引收口和断链审计拆为五个可独立验证的实施任务。
+- 将 `.worktrees/` 加入 Git 忽略规则，为文档迁移建立项目内隔离工作区，避免工作树内容进入提交。
+
 ## 2026-08-12（DST Manager v0.2.1）
 
 - Core Console 每次调用的 stdout/stderr 现在按“重建布局”和“读取布局 Handle”分段归档；非零退出时也会写入对应逐 DWG 日志，并在 Web 任务详情中展开显示。

@@ -1,3 +1,12 @@
+---
+id: RES-SH-002
+title: UtilityClass DST/XML 转换实现分析
+status: accepted
+owners: [shared]
+created: 2026-07-15
+updated: 2026-08-17
+---
+
 # UtilityClass DST/XML 转换实现分析
 
 ## 1. 文档目的
@@ -6,10 +15,10 @@
 
 分析依据包括：
 
-- [`plugin/UtilityClass/Class1.cs`](../plugin/UtilityClass/Class1.cs) 中的实现源码；
-- [`plugin/UtilityClass/UtilityClass.csproj`](../plugin/UtilityClass/UtilityClass.csproj) 中的构建目标；
-- [`Functions.ps1`](../Functions.ps1) 中的 DST 读取和 XML 查询逻辑；
-- [`图纸集生成-市政用0.24.ps1`](../图纸集生成-市政用0.24.ps1) 中的 XML 模板组装和 DST 输出逻辑；
+- 历史本地路径 `plugin/UtilityClass/Class1.cs` 中的实现源码；
+- 历史本地路径 `plugin/UtilityClass/UtilityClass.csproj` 中的构建目标；
+- [`Functions.ps1`](../../../Functions.ps1) 中的 DST 读取和 XML 查询逻辑；
+- [`图纸集生成-市政用0.24.ps1`](../../../图纸集生成-市政用0.24.ps1) 中的 XML 模板组装和 DST 输出逻辑；
 - 当前仓库内实际分发 DLL 的反射和查表一致性验证。
 
 本文只讨论仓库内已有实现。仓库目前没有可用于自动验证的 `.dst` 黄金样本，因此本文不能替代 AutoCAD Sheet Set Manager 的实际打开测试。

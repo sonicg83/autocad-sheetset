@@ -1,3 +1,15 @@
+---
+id: PLAN-DM-004
+title: v1.0 Windows 产品化
+status: proposed
+owners:
+  - dst-manager
+created: 2026-08-11
+updated: 2026-08-17
+related:
+  - ARCH-DM-001
+---
+
 # 阶段 4：v1.0 Windows 产品化
 
 状态：待实施  

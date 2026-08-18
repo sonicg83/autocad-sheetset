@@ -1,3 +1,16 @@
+---
+id: GUIDE-LR-001
+title: Legacy 开发与交接指南
+status: accepted
+owners:
+  - legacy-refactor
+created: 2026-07-15
+updated: 2026-08-17
+related:
+  - ARCH-LR-001
+  - RES-LR-001
+---
+
 # 开发与交接文档
 
 ## 1. 项目定位
@@ -339,7 +352,7 @@ AutoCAD 2016、WPF 和资源管理器调用都依赖桌面 Windows 环境。应�
 
 ### 升级 AutoCAD
 
-`AutoCad Utility.dll` 是主要兼容性边界。其源码现已确认位于 `plugin/AutoCad Utility/`，升级时应使用目标 AutoCAD 版本的 `AcCoreMgd.dll`、`AcDbMgd.dll`、`AcMgd.dll` 重新编译，并验证 `dellayouts`、`GetLayoutHandles`、`Ainsert` 三个命令。仅修改 `accorepath` 通常不够。完整源码说明见 [AutoCAD 插件开发与交接文档](PLUGIN_DEVELOPMENT.md)。
+`AutoCad Utility.dll` 是主要兼容性边界。其源码现已确认位于 `plugin/AutoCad Utility/`，升级时应使用目标 AutoCAD 版本的 `AcCoreMgd.dll`、`AcDbMgd.dll`、`AcMgd.dll` 重新编译，并验证 `dellayouts`、`GetLayoutHandles`、`Ainsert` 三个命令。仅修改 `accorepath` 通常不够。完整源码说明见 [AutoCAD 插件开发与交接文档](../../shared/guides/GUIDE-SH-001-autocad-plugin-development.md)。
 
 ## 13. 已知技术债与建议优先级
 

@@ -1,3 +1,12 @@
+---
+id: GUIDE-SH-001
+title: AutoCAD 插件开发与交接文档
+status: accepted
+owners: [shared]
+created: 2026-07-15
+updated: 2026-08-17
+---
+
 # AutoCAD 插件开发与交接文档
 
 ## 1. 文档范围与结论
