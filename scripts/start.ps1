@@ -366,6 +366,35 @@ function Remove-StalePackageMetadata {
     }
 }
 
+function Get-FileSha256([string]$PathValue) {
+    if (-not (Test-Path -LiteralPath $PathValue -PathType Leaf)) { throw "未找到用于校验依赖的文件：$PathValue" }
+    return (Get-FileHash -LiteralPath $PathValue -Algorithm SHA256).Hash.ToLowerInvariant()
+}
+
+function Test-WebDependenciesCurrent([string]$NpmCommand, [string]$WebRoot, [string]$LockHash) {
+    $nodeModules = Join-Path $WebRoot "node_modules"
+    $markerPath = Join-Path $nodeModules ".dst-manager-package-lock.sha256"
+    if (-not (Test-Path -LiteralPath $nodeModules -PathType Container) -or -not (Test-Path -LiteralPath $markerPath -PathType Leaf)) { return $false }
+    $recordedHash = (Get-Content -LiteralPath $markerPath -Raw -Encoding UTF8).Trim().ToLowerInvariant()
+    if ($recordedHash -ne $LockHash) { return $false }
+    Push-Location $WebRoot
+    try {
+        & $NpmCommand ls --all --omit=optional --json | Out-Null
+        return $LASTEXITCODE -eq 0
+    }
+    finally { Pop-Location }
+}
+
+function Install-WebDependencies([string]$NpmCommand, [string]$WebRoot, [string]$LockHash) {
+    Push-Location $WebRoot
+    try {
+        & $NpmCommand ci
+        if ($LASTEXITCODE -ne 0) { throw "npm ci 执行失败。" }
+        Set-Content -LiteralPath (Join-Path $WebRoot "node_modules\.dst-manager-package-lock.sha256") -Value $LockHash -Encoding UTF8
+    }
+    finally { Pop-Location }
+}
+
 function Save-StartupFailure([string]$Reason, [string]$RunId, [string]$RunDir, $Logs, [int]$TargetPort, [bool]$WorkerDisabled) {
     "[$([DateTime]::UtcNow.ToString('o'))] 启动失败：$Reason" | Add-Content -LiteralPath $Logs.startup -Encoding UTF8
     $failureState = [ordered]@{
@@ -433,21 +462,27 @@ function Start-Project {
         . (Join-Path $PSScriptRoot "setup-env.ps1")
         Get-Command uv -ErrorAction Stop | Out-Null
         if (-not $SkipSync) {
-            Write-Host "[1/4] 同步 Python 环境..." -ForegroundColor Cyan
+            Write-Host "[1/4] 按 uv.lock 同步 Python 环境..." -ForegroundColor Cyan
             Remove-StalePackageMetadata
             $env:UV_LINK_MODE = "copy"
-            & uv sync --dev
+            & uv sync --locked --dev
             if ($LASTEXITCODE -ne 0) { throw "uv sync 执行失败。" }
         }
         else { Write-Host "[1/4] 已跳过 Python 环境同步。" -ForegroundColor DarkGray }
 
         if (-not $SkipWebBuild) {
             $npmCommand = (Get-Command npm.cmd -CommandType Application -ErrorAction Stop | Select-Object -First 1).Source
-            Write-Host "[2/4] 安装并构建 Web 前端..." -ForegroundColor Cyan
-            Push-Location (Join-Path $projectRoot "web")
+            $webRoot = Join-Path $projectRoot "web"
+            $webLockHash = Get-FileSha256 (Join-Path $webRoot "package-lock.json")
+            if (Test-WebDependenciesCurrent $npmCommand $webRoot $webLockHash) {
+                Write-Host "[2/4] Web 依赖与 package-lock.json 一致，跳过安装并构建..." -ForegroundColor DarkGray
+            }
+            else {
+                Write-Host "[2/4] 按 package-lock.json 安装并构建 Web 前端..." -ForegroundColor Cyan
+                Install-WebDependencies $npmCommand $webRoot $webLockHash
+            }
+            Push-Location $webRoot
             try {
-                & $npmCommand ci
-                if ($LASTEXITCODE -ne 0) { throw "npm ci 执行失败。" }
                 & $npmCommand run build
                 if ($LASTEXITCODE -ne 0) { throw "Web 构建失败。" }
             }

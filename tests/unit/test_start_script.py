@@ -46,7 +46,47 @@ def test_start_script_is_utf8_bom_and_parses_in_powershell(shell):
         f"[System.Management.Automation.Language.Parser]::ParseFile('{SCRIPT}',[ref]$tokens,[ref]$errors)|Out-Null;"
         "if($errors.Count){$errors|ForEach-Object{$_.Message};exit 1}"
     )
-    completed = subprocess.run([shell, "-NoProfile", "-Command", command], cwd=ROOT, capture_output=True, text=True, check=False)
+    completed = subprocess.run(
+        [shell, "-NoProfile", "-Command", command],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+    )
+    assert completed.returncode == 0, completed.stdout + completed.stderr
+
+
+@pytest.mark.parametrize("shell", POWERSHELLS)
+@pytest.mark.skipif(not POWERSHELLS, reason="需要 Windows PowerShell 或 PowerShell 7")
+def test_web_dependency_check_reuses_matching_lockfile_installation(shell, tmp_path):
+    web_root = tmp_path / "web"
+    node_modules = web_root / "node_modules"
+    node_modules.mkdir(parents=True)
+    (node_modules / ".dst-manager-package-lock.sha256").write_text("matching-lock-hash\n", encoding="utf-8")
+    npm = tmp_path / "npm.cmd"
+    npm.write_text("@echo off\r\nif \"%1\"==\"ls\" exit /b 0\r\nexit /b 1\r\n", encoding="ascii")
+
+    command = f"""
+$tokens=$null;$errors=$null
+$ast=[System.Management.Automation.Language.Parser]::ParseFile('{SCRIPT}',[ref]$tokens,[ref]$errors)
+$functions=@($ast.FindAll({{param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Test-WebDependenciesCurrent'}}, $true))
+if($functions.Count -ne 1){{throw '未找到 Web 依赖复用检查函数'}}
+Invoke-Expression $functions[0].Extent.Text
+if(-not (Test-WebDependenciesCurrent '{npm}' '{web_root}' 'matching-lock-hash')){{throw '匹配的锁文件依赖应被复用'}}
+if(Test-WebDependenciesCurrent '{npm}' '{web_root}' 'changed-lock-hash'){{throw '锁文件变化后不得复用依赖'}}
+"""
+    completed = subprocess.run(
+        [shell, "-NoProfile", "-Command", command],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+    )
+
     assert completed.returncode == 0, completed.stdout + completed.stderr
 
 

@@ -12,7 +12,7 @@
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start.ps1
 ```
 
-脚本会初始化环境、同步 Python 依赖、构建 Web、升级数据库，并在后台启动 Web/API 和 CAD Worker。服务就绪后默认打开 `http://127.0.0.1:8000`。
+脚本会初始化环境、按 `uv.lock` 同步 Python 依赖、构建 Web、升级数据库，并在后台启动 Web/API 和 CAD Worker。服务就绪后默认打开 `http://127.0.0.1:8000`。Python 依赖严格使用 `uv.lock`；Web 依赖严格使用 `web/package-lock.json`，仅在锁文件变化、依赖缺失或校验失败时重新执行 `npm ci`，日常重复启动会直接复用已安装依赖。
 
 ```powershell
 # 查看状态
